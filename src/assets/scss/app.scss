@@ -27,3 +27,194 @@ body, input, button, select, textarea, .navigation, .main-menu {
   padding: 0;
   line-height: 0;
 }
+
+
+/* JF Cap'tain 2026-09-11 — active leaf = EOR navy underline word-only, no violet bg.
+   Color sampled from src/assets/img/logo/eor.png (250px pack) dominant #002060.
+   Route-only: .active from menuActiveMatch leaf, never sticky parent.
+   Beat Vuexy mixin: .main-menu.menu-* .navigation > li ul.menu-content li.active > a (!important gradient).
+   Also kill li.active gradient from core/menu/_navigation.scss ~232. */
+$eor-navy: #002060;
+
+@mixin eor-nav-active-title {
+  .menu-title {
+    /* flex:1 on Vuexy .menu-title made underline span full row — force word width */
+    display: inline !important;
+    flex: none !important;
+    flex-grow: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    color: $eor-navy !important;
+    border-bottom: 2px solid $eor-navy !important;
+    padding-bottom: 1px;
+    text-decoration: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
+
+@mixin eor-kill-violet-bg {
+  color: inherit !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.main-menu {
+  &.menu-light,
+  &.menu-dark {
+    .navigation {
+      > li {
+        &.open:not(.active) > a,
+        ul.menu-content .open:not(.active) > a {
+          background: transparent !important;
+          background-image: none !important;
+          box-shadow: none !important;
+          color: inherit;
+        }
+        &.sidebar-group-active:not(.active) > a {
+          background: transparent !important;
+          background-image: none !important;
+          box-shadow: none !important;
+        }
+
+        /* Top-level active leaf — match Vuexy .nav-item.active > a */
+        &.nav-item.active > a,
+        &.active > a,
+        &.has-sub.active > a {
+          @include eor-kill-violet-bg;
+          font-weight: 500;
+          @include eor-nav-active-title;
+        }
+
+        /* Sub-item: mixin puts gradient on > a with !important — equal/beat specificity */
+        ul.menu-content li.active {
+          @include eor-kill-violet-bg;
+          > a {
+            @include eor-kill-violet-bg;
+            font-weight: 500;
+            @include eor-nav-active-title;
+          }
+        }
+      }
+
+      /* _navigation.scss ~221–238: gradient on .nav-item.active a AND on li.active */
+      .nav-item.active > a,
+      .nav-item.active a,
+      .nav-item .menu-content li.active,
+      .nav-item .menu-content li.active > a,
+      ul.menu-content > li.active,
+      ul.menu-content > li.active > a,
+      ul.menu-content li.active,
+      ul.menu-content li.active > a {
+        @include eor-kill-violet-bg;
+      }
+
+      .nav-item.active > a,
+      .nav-item .menu-content li.active > a,
+      ul.menu-content li.active > a {
+        font-weight: 500;
+        @include eor-nav-active-title;
+      }
+
+      /* Hover — same word-only navy underline (Talker.now gesture), zero bg */
+      li:not(.active) > a:hover .menu-title,
+      ul.menu-content li:not(.active) > a:hover .menu-title {
+        display: inline !important;
+        flex: none !important;
+        flex-grow: 0 !important;
+        width: auto !important;
+        color: $eor-navy !important;
+        border-bottom: 2px solid $eor-navy !important;
+        padding-bottom: 1px;
+        text-decoration: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      li:not(.active) > a:hover,
+      ul.menu-content li:not(.active) > a:hover {
+        background: transparent !important;
+        background-image: none !important;
+        box-shadow: none !important;
+      }
+    }
+  }
+}
+
+/* EOR nuclear kill violet — beats [dir=ltr] theme-primary Vuexy */
+$eor-navy: #002060;
+
+@mixin eor-nuke-active-surface {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin-bottom: 0 !important;
+  color: inherit !important;
+}
+
+@mixin eor-word-underline {
+  display: inline !important;
+  flex: none !important;
+  flex-grow: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  color: $eor-navy !important;
+  border-bottom: 2px solid $eor-navy !important;
+  padding-bottom: 1px;
+  text-decoration: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+// Beat [dir=ltr|rtl] + .vertical-layout .theme-* .nav-item .menu-content li.active
+html body.vertical-layout .main-menu .navigation li.active,
+html body.vertical-layout .main-menu .navigation li.active > a,
+html body.vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body.vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a,
+html body.vertical-layout .main-menu .navigation > li ul.menu-content li.active,
+html body.vertical-layout .main-menu .navigation > li ul.menu-content li.active > a,
+html body[dir] .vertical-layout .main-menu .navigation li.active,
+html body[dir] .vertical-layout .main-menu .navigation li.active > a,
+html body[dir] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body[dir] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li.active,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li.active > a,
+html body[dir=ltr] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body[dir=ltr] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li.active,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li.active > a,
+html body[dir=rtl] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active,
+html body[dir=rtl] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a {
+  @include eor-nuke-active-surface;
+}
+
+html body.vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body[dir] .vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li.active > a .menu-title,
+html body.vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title,
+html body[dir] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title,
+html body[dir=ltr] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title,
+html body[dir=rtl] .vertical-layout .main-menu .navigation .nav-item .menu-content li.active > a .menu-title {
+  @include eor-word-underline;
+}
+
+// Hover word-only (Talker) — same specificity family
+html body.vertical-layout .main-menu .navigation li:not(.active) > a:hover,
+html body[dir] .vertical-layout .main-menu .navigation li:not(.active) > a:hover,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li:not(.active) > a:hover,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li:not(.active) > a:hover {
+  @include eor-nuke-active-surface;
+}
+
+html body.vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title,
+html body[dir] .vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title,
+html body[dir=ltr] .vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title,
+html body[dir=rtl] .vertical-layout .main-menu .navigation li:not(.active) > a:hover .menu-title {
+  @include eor-word-underline;
+}

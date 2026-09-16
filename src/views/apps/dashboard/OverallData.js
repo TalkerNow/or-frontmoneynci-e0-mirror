@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  CheckCircle,
+  Activity,
   DollarSign,
-  Inbox,
-  Package,
-  TrendingUp,
+  FileText,
+  MessageCircle,
   Users,
 } from "react-feather";
 import axios from "axios";
@@ -22,8 +21,6 @@ import {
 } from "reactstrap";
 import classNames from "classnames";
 import TabDropdown from "../../../components/TabDropdown";
-import ProspectsDetailsModal from "./ProspectsDetailsModal";
-
 /* ===================== Constantes ===================== */
 const FRENCH_MONTHS = [
   "Janvier",
@@ -264,7 +261,7 @@ const StatItem = ({ icon: Icon, value, label, color, onClick }) => (
   </div>
 );
 
-const StatGrid = ({ stats, onProspectsClick }) => (
+const StatGrid = ({ stats }) => (
   <div
     className="icon-section form-inline text-bold-600 w-100"
     style={{
@@ -282,11 +279,7 @@ const StatGrid = ({ stats, onProspectsClick }) => (
     }}
   >
     {stats.map((s) => (
-      <StatItem
-        key={s.label}
-        {...s}
-        onClick={s.label === "Prospects" ? onProspectsClick : undefined}
-      />
+      <StatItem key={s.label} {...s} />
     ))}
   </div>
 );
@@ -298,7 +291,9 @@ function normalizeApiYear(dataByMonthIndex1to12) {
     (_, i) => dataByMonthIndex1to12[i + 1] || {},
   );
   return {
-    client_count: months.map((m) => m.current_acompte_count || 0),
+    // clients_count = users.role=Client créés dans l'année (période) — people tiles use STOCK instead
+    clients_count: months.map((m) => m.clients_count || 0),
+    current_acompte_count: months.map((m) => m.current_acompte_count || 0),
     current_total_amount: months.map((m) => m.current_total_amount || 0),
     total_ended_count: months.map((m) => m.total_ended_count || 0),
     current_acompte_amount: months.map((m) => m.current_acompte_amount || 0),
@@ -306,6 +301,116 @@ function normalizeApiYear(dataByMonthIndex1to12) {
     opportunite_amount: months.map((m) => m.opportunite_amount || 0),
     opportunite_count: months.map((m) => m.opportunite_count || 0),
   };
+}
+
+/** Extract Laravel paginator total, or array length. */
+function extractTotal(payload) {
+  if (payload == null) return null;
+  if (typeof payload.total === "number") return payload.total;
+  if (payload.meta && typeof payload.meta.total === "number") return payload.meta.total;
+  if (Array.isArray(payload.data) && typeof payload.total === "number") return payload.total;
+  if (Array.isArray(payload)) return payload.length;
+  if (Array.isArray(payload.data)) return payload.data.length;
+  return null;
+}
+
+/** Pull items array from Laravel paginator or bare array. */
+function extractList(payload) {
+  if (payload == null) return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+/** Fetch all pages of a paginated endpoint (cap maxPages). */
+async function fetchAllPages(url, params = {}, maxPages = 100) {
+  let page = 1;
+  let aggregated = [];
+  let maxPage = 1;
+  do {
+    const res = await axios.get(url, {
+      ...AUTH_CONFIG,
+      params: { ...params, page },
+    });
+    const payload = res.data || {};
+    const data = extractList(payload);
+    aggregated = aggregated.concat(data);
+    maxPage = payload.last_page || payload.meta?.last_page || 1;
+    if (Array.isArray(payload)) maxPage = 1;
+    page += 1;
+  } while (page <= maxPage && page <= maxPages);
+  return aggregated;
+}
+
+function parseDate(raw) {
+  if (raw == null || raw === "") return null;
+  // Laravel often returns "YYYY-MM-DD HH:mm:ss" (space); Date() needs ISO-ish "T"
+  let s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+    s = s.replace(" ", "T");
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Inclusive period bounds matching dashboard filters (local dates). */
+function getPeriodBounds(activeTab, year, monthIndex, trimIndex, currentWeek) {
+  const startOfDay = (y, m, d) => new Date(y, m, d, 0, 0, 0, 0);
+  const endOfDay = (y, m, d) => new Date(y, m, d, 23, 59, 59, 999);
+
+  if (activeTab === "1") {
+    // Mois
+    const start = startOfDay(year, monthIndex, 1);
+    const end = endOfDay(year, monthIndex + 1, 0); // last day of month
+    return { start, end };
+  }
+  if (activeTab === "2") {
+    // Trimestre
+    const m0 = trimIndex * 3;
+    const start = startOfDay(year, m0, 1);
+    const end = endOfDay(year, m0 + 3, 0);
+    return { start, end };
+  }
+  if (activeTab === "4") {
+    // Semaine ISO
+    const num =
+      Number(String(currentWeek).replace(/\D/g, "")) ||
+      isoWeekInfo(new Date()).isoWeek;
+    const monday = isoWeekStart(year, num);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return {
+      start: startOfDay(monday.getFullYear(), monday.getMonth(), monday.getDate()),
+      end: endOfDay(sunday.getFullYear(), sunday.getMonth(), sunday.getDate()),
+    };
+  }
+  // Année (tab 3) + fallback
+  return {
+    start: startOfDay(year, 0, 1),
+    end: endOfDay(year, 11, 31),
+  };
+}
+
+function countInPeriod(items, dateKeys, start, end) {
+  if (!Array.isArray(items)) return 0;
+  let n = 0;
+  for (const it of items) {
+    if (!it) continue;
+    let d = null;
+    for (const k of dateKeys) {
+      d = parseDate(it[k]);
+      if (d) break;
+    }
+    if (d && d >= start && d <= end) n += 1;
+  }
+  return n;
+}
+
+function periodLabel(activeTab, year, monthIndex, trimIndex, currentWeek) {
+  if (activeTab === "1") return `${FRENCH_MONTHS[monthIndex]} ${year}`;
+  if (activeTab === "2") return `T${trimIndex + 1} ${year}`;
+  if (activeTab === "4") return `${currentWeek} ${year}`;
+  return `Année ${year}`;
 }
 
 /* ===================== Composant principal ===================== */
@@ -329,6 +434,19 @@ export default function OverallCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [data, setData] = useState(() => normalizeApiYear({}));
+
+  // Activité période — raw lists (null = API fail → hide tile; [] = 0 OK)
+  const [activityRaw, setActivityRaw] = useState({
+    chatbot: null, // conversation_archives
+    diags: null, // simulator_difficulty_results
+    prospects: null, // CRM users Client|Prospect|user (created_at)
+    inboundEmails: null, // Mail tile = inbound_emails source=cf7 only
+  });
+
+  // Contrats signés période — suivi_avancement.step1 + documents.advanced_payment (flat join)
+  const [suiviRaw, setSuiviRaw] = useState(null); // null = fail/hide; [] = 0 OK
+  // Contrats créés période — documents.created_at (all rows = type contract; no contracts table)
+  const [docsRaw, setDocsRaw] = useState(null); // null = fail/hide; [] = 0 OK
 
   const fetchYear = useCallback(
     async (y) => {
@@ -356,18 +474,244 @@ export default function OverallCard() {
     fetchYear(year);
   }, [fetchYear, year]);
 
+  // Activité raw lists (once) + suivi for Contrats signés — admin only
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+
+    (async () => {
+      const next = {
+        chatbot: null,
+        diags: null,
+        prospects: null,
+        inboundEmails: null,
+      };
+
+      // Prospects créés = CRM fiches created: Client|Prospect|user (excl. admin/consultant/expert)
+      try {
+        const [clients, members] = await Promise.all([
+          fetchAllPages(`${global.config.server_url}/users`, {
+            kind: "client",
+            per_page: 200,
+          }),
+          fetchAllPages(`${global.config.server_url}/users`, {
+            kind: "member",
+            per_page: 200,
+          }).catch(async () => {
+            // kind=member may return bare array (non-paginated)
+            const res = await axios.get(
+              `${global.config.server_url}/users?kind=member`,
+              AUTH_CONFIG,
+            );
+            return Array.isArray(res.data)
+              ? res.data
+              : Array.isArray(res.data?.data)
+                ? res.data.data
+                : [];
+          }),
+        ]);
+        const byId = new Map();
+        for (const u of [...clients, ...members]) {
+          if (!u || u.id == null) continue;
+          byId.set(u.id, u);
+        }
+        const ALLOWED = new Set(["client", "prospect", "user"]);
+        next.prospects = [...byId.values()].filter((u) =>
+          ALLOWED.has(String(u.role || "").toLowerCase()),
+        );
+      } catch (e) {
+        console.error("dashboard prospects activity", e);
+        next.prospects = null;
+      }
+
+      try {
+        next.chatbot = await fetchAllPages(
+          `${global.config.server_url}/conversation-archives`,
+          { per_page: 200 },
+        );
+      } catch (e) {
+        console.error("dashboard chatbot activity", e);
+        next.chatbot = null;
+      }
+
+      try {
+        next.diags = await fetchAllPages(
+          `${global.config.server_url}/v1/simulator-difficulty-results`,
+          { per_page: 200 },
+        );
+      } catch (e) {
+        console.error("dashboard diags activity", e);
+        next.diags = null;
+      }
+
+      try {
+        // Mail tile = inbound_emails source=cf7 only (auth:api)
+        next.inboundEmails = await fetchAllPages(
+          `${global.config.server_url}/inbound-emails`,
+          { source: "cf7", per_page: 200 },
+        );
+      } catch (e) {
+        console.error("dashboard inbound emails activity", e);
+        // Prefer visible tile at 0 over hidden (null) when fetch fails
+        next.inboundEmails = [];
+      }
+
+      // Contrats signés: GET /suivi-avancement/all (flat join incl. advanced_payment)
+      let suiviList = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/suivi-avancement/all`,
+          AUTH_CONFIG,
+        );
+        const payload = res.data;
+        suiviList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+      } catch (e) {
+        console.error("dashboard contrats signes suivi", e);
+        suiviList = null;
+      }
+
+      // Contrats créés: GET /documents — COUNT created_at in period (SQL: documents.created_at)
+      let docsList = null;
+      try {
+        const res = await axios.get(
+          `${global.config.server_url}/documents`,
+          AUTH_CONFIG,
+        );
+        const payload = res.data;
+        docsList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+      } catch (e) {
+        console.error("dashboard contrats crees documents", e);
+        docsList = null;
+      }
+
+      if (!cancelled) {
+        setActivityRaw({
+          chatbot: next.chatbot,
+          diags: next.diags,
+          inboundEmails: next.inboundEmails,
+          prospects: next.prospects,
+        });
+        setSuiviRaw(suiviList);
+        setDocsRaw(docsList);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  // Activité période — filter Martin motion sources by dashboard period
+  const activityPeriod = useMemo(() => {
+    const { start, end } = getPeriodBounds(
+      activeTab,
+      year,
+      monthIndex,
+      trimIndex,
+      currentWeek,
+    );
+    const label = periodLabel(
+      activeTab,
+      year,
+      monthIndex,
+      trimIndex,
+      currentWeek,
+    );
+    const mk = (raw, keys) =>
+      raw == null ? null : countInPeriod(raw, keys, start, end);
+    // Mail = inbound_emails source=cf7 only × received_at (fallback created_at)
+    let mail = null;
+    if (activityRaw.inboundEmails != null) {
+      mail = 0;
+      const items = activityRaw.inboundEmails;
+      if (Array.isArray(items)) {
+        const ALLOWED = new Set(["cf7"]);
+        for (const it of items) {
+          if (!it) continue;
+          if (!ALLOWED.has(String(it.source || "").toLowerCase())) continue;
+          let d = parseDate(it.received_at) || parseDate(it.created_at);
+          if (d && d >= start && d <= end) mail += 1;
+        }
+      }
+    }
+    return {
+      label,
+      prospectsCreated: mk(activityRaw.prospects, ["created_at"]),
+      diags: mk(activityRaw.diags, ["created_at", "external_created_at"]),
+      chatbot: mk(activityRaw.chatbot, ["created_at"]),
+      mail,
+    };
+  }, [
+    activityRaw,
+    activeTab,
+    year,
+    monthIndex,
+    trimIndex,
+    currentWeek,
+  ]);
+
+  // Contrats signés (période) — count step1 + SUM advanced_payment (TTC devis, ≠ CA encaissé)
+  const contratsSignesPeriod = useMemo(() => {
+    if (suiviRaw == null) return { count: null, ttc: null };
+    const { start, end } = getPeriodBounds(
+      activeTab,
+      year,
+      monthIndex,
+      trimIndex,
+      currentWeek,
+    );
+    let count = 0;
+    let ttc = 0;
+    for (const it of suiviRaw) {
+      if (!it) continue;
+      const d = parseDate(it.step1_completed_at);
+      if (!d || d < start || d > end) continue;
+      count += 1;
+      // API flat join exposes advanced_payment; tolerate nested document/facture if shape changes
+      const ap =
+        it.advanced_payment ??
+        it.document?.advanced_payment ??
+        it.facture?.advanced_payment;
+      ttc += Number(ap || 0);
+    }
+    return { count, ttc };
+  }, [suiviRaw, activeTab, year, monthIndex, trimIndex, currentWeek]);
+
+  // Contrats créés (période) — COUNT documents.created_at (tous = contrats; table contracts absente)
+  const contratsCreesPeriod = useMemo(() => {
+    if (docsRaw == null) return null;
+    const { start, end } = getPeriodBounds(
+      activeTab,
+      year,
+      monthIndex,
+      trimIndex,
+      currentWeek,
+    );
+    // Prefer type=contract when present; all current rows are contract
+    const items = Array.isArray(docsRaw)
+      ? docsRaw.filter((it) => {
+          if (!it) return false;
+          const t = String(it.type || "").toLowerCase();
+          return !t || t === "contract";
+        })
+      : [];
+    return countInPeriod(items, ["created_at"], start, end);
+  }, [docsRaw, activeTab, year, monthIndex, trimIndex, currentWeek]);
+
   const statsForMonth = useCallback(
     (i) => ({
       ca: fmt(data.current_total_amount[i]),
       acompte: fmt(data.current_acompte_amount[i]),
       solde: fmt(data.current_solde_amount[i]),
       oppoAmount: fmt(data.opportunite_amount[i]),
-      clientsSignes: fmt(data.client_count[i]),
-      prospects: fmt(data.opportunite_count[i]),
-      totalClients: fmt(
-        (Number(data.client_count[i]) || 0) +
-          (Number(data.opportunite_count[i]) || 0),
-      ),
       contratsClotures: fmt(data.total_ended_count[i]),
     }),
     [data],
@@ -379,12 +723,6 @@ export default function OverallCard() {
       acompte: fmt(data.current_acompte_amount[monthIndex]),
       solde: fmt(data.current_solde_amount[monthIndex]),
       oppoAmount: fmt(data.opportunite_amount[monthIndex]),
-      clientsSignes: fmt(data.client_count[monthIndex]),
-      prospects: fmt(data.opportunite_count[monthIndex]),
-      totalClients: fmt(
-        (Number(data.client_count[monthIndex]) || 0) +
-          (Number(data.opportunite_count[monthIndex]) || 0),
-      ),
       contratsClotures: fmt(data.total_ended_count[monthIndex]),
     }),
     [data, monthIndex],
@@ -398,11 +736,6 @@ export default function OverallCard() {
       acompte: fmt(sum(pick(data.current_acompte_amount))),
       solde: fmt(sum(pick(data.current_solde_amount))),
       oppoAmount: fmt(sum(pick(data.opportunite_amount))),
-      clientsSignes: fmt(sum(pick(data.client_count))),
-      prospects: fmt(sum(pick(data.opportunite_count))),
-      totalClients: fmt(
-        sum(pick(data.client_count)) + sum(pick(data.opportunite_count)),
-      ),
       contratsClotures: fmt(sum(pick(data.total_ended_count))),
     };
   }, [data, trimIndex]);
@@ -413,9 +746,6 @@ export default function OverallCard() {
       acompte: fmt(sum(data.current_acompte_amount)),
       solde: fmt(sum(data.current_solde_amount)),
       oppoAmount: fmt(sum(data.opportunite_amount)),
-      clientsSignes: fmt(sum(data.client_count)),
-      prospects: fmt(sum(data.opportunite_count)),
-      totalClients: fmt(sum(data.client_count) + sum(data.opportunite_count)),
       contratsClotures: fmt(sum(data.total_ended_count)),
     }),
     [data],
@@ -437,100 +767,65 @@ export default function OverallCard() {
 
   const tabStats = useMemo(() => {
     const UL = (v) => v;
+    // JF tip: Contrats créés · Contrats signés · Signés TTC (Opportunités € dropped as key)
+    // Créés = documents.created_at période; Signés = step1; Signés TTC = SUM advanced_payment
+    const COUNT_LABELS = new Set(["Contrats créés", "Contrats signés"]);
     const common = [
       {
-        icon: TrendingUp,
-        bubbleClass: "bg-rgba-warning",
-        valueKey: "ca",
-        label: "Chiffre d'affaires",
+        icon: FileText,
+        bubbleClass: "bg-rgba-success",
+        valueKey: "contratsCrees",
+        label: "Contrats créés",
+        color: "#28c76f",
+      },
+      {
+        icon: FileText,
+        bubbleClass: "bg-rgba-primary",
+        valueKey: "contratsSignes",
+        label: "Contrats signés",
         color: "#7367f0",
-      },
-      {
-        icon: Inbox,
-        bubbleClass: "bg-rgba-info",
-        valueKey: "acompte",
-        label: "Acomptes",
-        color: "#00cfe8",
-      },
-      {
-        icon: Package,
-        bubbleClass: "bg-rgba-info",
-        valueKey: "solde",
-        label: "Soldes",
-        color: "#00cfe8",
       },
       {
         icon: DollarSign,
-        bubbleClass: "bg-rgba-success",
-        valueKey: "oppoAmount",
-        label: "Opportunités",
-        color: "#28c76f",
-      },
-      {
-        icon: Users,
-        bubbleClass: "bg-rgba-primary",
-        valueKey: "clientsSignes",
-        label: "Clients signés",
-        color: "#28c76f",
-      },
-      {
-        icon: Users,
-        bubbleClass: "bg-rgba-primary",
-        valueKey: "prospects",
-        label: "Prospects",
+        bubbleClass: "bg-rgba-warning",
+        valueKey: "signesTtc",
+        label: "Signés TTC",
         color: "#ff9f43",
       },
-      {
-        icon: Users,
-        bubbleClass: "bg-rgba-primary",
-        valueKey: "totalClients",
-        label: "Total clients",
-        color: "#7367f0",
-      },
-      {
-        icon: CheckCircle,
-        bubbleClass: "bg-rgba-danger",
-        valueKey: "contratsClotures",
-        label: "Contrats cloturés",
-        color: "#ea5455",
-      },
     ];
+    const withSigned = (obj) => ({
+      ...obj,
+      contratsCrees:
+        contratsCreesPeriod == null ? null : fmt(contratsCreesPeriod),
+      contratsSignes:
+        contratsSignesPeriod.count == null
+          ? null
+          : fmt(contratsSignesPeriod.count),
+      signesTtc:
+        contratsSignesPeriod.ttc == null
+          ? null
+          : fmt(contratsSignesPeriod.ttc),
+    });
     const toCards = (obj) =>
-      common.map(({ icon, bubbleClass, valueKey, label, color }) => ({
-        icon,
-        bubbleClass,
-        color,
-        value:
-          UL(obj[valueKey]) +
-          (label !== "Clients signés" &&
-          label !== "Prospects" &&
-          label !== "Total clients" &&
-          label !== "Contrats cloturés"
-            ? " €"
-            : ""),
-        label,
-      }));
+      common
+        .filter(({ valueKey }) => obj[valueKey] != null)
+        .map(({ icon, bubbleClass, valueKey, label, color }) => ({
+          icon,
+          bubbleClass,
+          color,
+          value: UL(obj[valueKey]) + (COUNT_LABELS.has(label) ? "" : " €"),
+          label,
+        }));
     return {
-      month: toCards(monthlyStats),
-      trim: toCards(trimesterStats),
-      year: toCards(yearlyStats),
+      month: toCards(withSigned(monthlyStats)),
+      trim: toCards(withSigned(trimesterStats)),
+      year: toCards(withSigned(yearlyStats)),
     };
-  }, [monthlyStats, trimesterStats, yearlyStats]);
+  }, [monthlyStats, trimesterStats, yearlyStats, contratsSignesPeriod, contratsCreesPeriod]);
 
   const [openYear, setOpenYear] = useState(false);
   const [openMonth, setOpenMonth] = useState(false);
   const [openTrim, setOpenTrim] = useState(false);
-  const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
-
-  // Handler pour ouvrir la modale Prospects
-  const handleProspectsClick = useCallback(() => {
-    setProspectsModalOpen(true);
-  }, []);
-
-  // Extrait le numéro de semaine depuis currentWeek ("W12" -> 12)
-  const weekNumber = useMemo(() => {
-    return Number(String(currentWeek).replace(/\D/g, "")) || 1;
-  }, [currentWeek]);
 
   const FiltersLeft = () => (
     <Nav className="d-flex align-items-center flex-wrap">
@@ -688,7 +983,7 @@ export default function OverallCard() {
   if (!isAdmin) return null;
 
   return (
-    <>
+    <div className="w-100">
       <style>{DROPDOWN_CSS}</style>
       <Card>
         <CardHeader className="pb-2">
@@ -723,83 +1018,57 @@ export default function OverallCard() {
                 <StatGrid
                   stats={(() => {
                     const UL = (v) => v;
+                    const COUNT_LABELS = new Set(["Contrats créés", "Contrats signés"]);
                     const common = [
                       {
-                        icon: TrendingUp,
-                        bubbleClass: "bg-rgba-warning",
-                        valueKey: "ca",
-                        label: "Chiffre d'affaires",
+                        icon: FileText,
+                        bubbleClass: "bg-rgba-success",
+                        valueKey: "contratsCrees",
+                        label: "Contrats créés",
+                        color: "#28c76f",
+                      },
+                      {
+                        icon: FileText,
+                        bubbleClass: "bg-rgba-primary",
+                        valueKey: "contratsSignes",
+                        label: "Contrats signés",
                         color: "#7367f0",
-                      },
-                      {
-                        icon: Inbox,
-                        bubbleClass: "bg-rgba-info",
-                        valueKey: "acompte",
-                        label: "Acomptes",
-                        color: "#00cfe8",
-                      },
-                      {
-                        icon: Package,
-                        bubbleClass: "bg-rgba-info",
-                        valueKey: "solde",
-                        label: "Soldes",
-                        color: "#00cfe8",
                       },
                       {
                         icon: DollarSign,
-                        bubbleClass: "bg-rgba-success",
-                        valueKey: "oppoAmount",
-                        label: "Opportunités",
-                        color: "#28c76f",
-                      },
-                      {
-                        icon: Users,
-                        bubbleClass: "bg-rgba-primary",
-                        valueKey: "clientsSignes",
-                        label: "Clients signés",
-                        color: "#28c76f",
-                      },
-                      {
-                        icon: Users,
-                        bubbleClass: "bg-rgba-primary",
-                        valueKey: "prospects",
-                        label: "Prospects",
+                        bubbleClass: "bg-rgba-warning",
+                        valueKey: "signesTtc",
+                        label: "Signés TTC",
                         color: "#ff9f43",
                       },
-                      {
-                        icon: Users,
-                        bubbleClass: "bg-rgba-primary",
-                        valueKey: "totalClients",
-                        label: "Total clients",
-                        color: "#7367f0",
-                      },
-                      {
-                        icon: CheckCircle,
-                        bubbleClass: "bg-rgba-danger",
-                        valueKey: "contratsClotures",
-                        label: "Contrats cloturés",
-                        color: "#ea5455",
-                      },
                     ];
-                    const obj = weeklyStats;
-                    return common.map(
-                      ({ icon, bubbleClass, valueKey, label, color }) => ({
+                    const obj = {
+                      ...weeklyStats,
+                      contratsCrees:
+                        contratsCreesPeriod == null
+                          ? null
+                          : fmt(contratsCreesPeriod),
+                      contratsSignes:
+                        contratsSignesPeriod.count == null
+                          ? null
+                          : fmt(contratsSignesPeriod.count),
+                      signesTtc:
+                        contratsSignesPeriod.ttc == null
+                          ? null
+                          : fmt(contratsSignesPeriod.ttc),
+                    };
+                    return common
+                      .filter(({ valueKey }) => obj[valueKey] != null)
+                      .map(({ icon, bubbleClass, valueKey, label, color }) => ({
                         icon,
                         bubbleClass,
                         color,
                         value:
                           UL(obj[valueKey]) +
-                          (label !== "Clients signés" &&
-                          label !== "Prospects" &&
-                          label !== "Total clients" &&
-                          label !== "Contrats cloturés"
-                            ? " €"
-                            : ""),
+                          (COUNT_LABELS.has(label) ? "" : " €"),
                         label,
-                      }),
-                    );
+                      }));
                   })()}
-                  onProspectsClick={handleProspectsClick}
                 />
               )}
             </TabPane>
@@ -809,7 +1078,6 @@ export default function OverallCard() {
               ) : (
                 <StatGrid
                   stats={tabStats.month}
-                  onProspectsClick={handleProspectsClick}
                 />
               )}
             </TabPane>
@@ -819,7 +1087,6 @@ export default function OverallCard() {
               ) : (
                 <StatGrid
                   stats={tabStats.trim}
-                  onProspectsClick={handleProspectsClick}
                 />
               )}
             </TabPane>
@@ -829,7 +1096,6 @@ export default function OverallCard() {
               ) : (
                 <StatGrid
                   stats={tabStats.year}
-                  onProspectsClick={handleProspectsClick}
                 />
               )}
             </TabPane>
@@ -837,16 +1103,55 @@ export default function OverallCard() {
         </CardBody>
       </Card>
 
-      {/* Modal Drill-Down Prospects */}
-      <ProspectsDetailsModal
-        isOpen={prospectsModalOpen}
-        toggle={() => setProspectsModalOpen(false)}
-        year={year}
-        monthIndex={monthIndex}
-        trimIndex={trimIndex}
-        activeTab={activeTab}
-        weekNumber={weekNumber}
-      />
-    </>
+      {/* Activité période — Martin motion (honest 0 OK; Chatbot=archives created_at) */}
+      {(activityPeriod.prospectsCreated != null ||
+        activityPeriod.diags != null ||
+        activityPeriod.chatbot != null ||
+        activityPeriod.mail != null) && (
+        <Card className="mt-1">
+          <CardHeader className="pb-1 d-flex align-items-center justify-content-between flex-wrap">
+            <CardTitle tag="h4" className="mb-0">
+              Activité
+            </CardTitle>
+            <span
+              className="text-muted"
+              style={{ fontSize: "0.9rem", fontWeight: 500 }}
+            >
+              {activityPeriod.label}
+            </span>
+          </CardHeader>
+          <CardBody>
+            <StatGrid
+              stats={[
+                activityPeriod.prospectsCreated != null && {
+                  icon: Users,
+                  color: "#ff9f43",
+                  value: fmt(activityPeriod.prospectsCreated),
+                  label: "Prospects créés",
+                },
+                activityPeriod.diags != null && {
+                  icon: Activity,
+                  color: "#7367f0",
+                  value: fmt(activityPeriod.diags),
+                  label: "Diags",
+                },
+                activityPeriod.chatbot != null && {
+                  icon: MessageCircle,
+                  color: "#00cfe8",
+                  value: fmt(activityPeriod.chatbot),
+                  label: "Chatbots",
+                },
+                activityPeriod.mail != null && {
+                  icon: FileText,
+                  color: "#28c76f",
+                  value: fmt(activityPeriod.mail),
+                  label: "Mails",
+                },
+              ].filter(Boolean)}
+            />
+          </CardBody>
+        </Card>
+      )}
+    </div>
   );
 }

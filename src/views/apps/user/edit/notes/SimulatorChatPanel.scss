@@ -3,33 +3,49 @@
   border-radius: 8px;
   margin: 12px 0;
   background: #fff;
-  overflow: hidden;
+  /* visible so upward + docs DropdownMenu can escape (JF clipped list) */
+  overflow: visible;
+
+  &__body,
+  &__thread,
+  &__input,
+  &__sessions,
+  &__plus-dd {
+    overflow: visible;
+  }
 
   &__bar {
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 6px 12px;
     background: #6c5ce7;
     color: #fff;
     border: none;
+    border-radius: 8px 8px 0 0; /* keep top radius without panel overflow:hidden */
     font-weight: 700;
     cursor: pointer;
   }
   &__bar-hint { font-size: 12px; font-weight: 400; opacity: 0.85; }
 
-  &__body { display: flex; height: 320px; }
+  /* Composer-first: no fixed tall void when empty (JF shot 06) */
+  &__body {
+    display: flex;
+    align-items: stretch;
+    min-height: 0;
+    height: auto;
+  }
 
   &__sessions {
-    width: 180px;
+    width: 148px;
     border-right: 1px solid #eee;
     display: flex;
     flex-direction: column;
   }
   &__new {
-    margin: 8px;
-    padding: 6px 8px;
+    margin: 6px;
+    padding: 4px 6px;
     border: 1px solid #6c5ce7;
     border-radius: 6px;
     background: #fff;
@@ -37,31 +53,55 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
+    &:disabled { opacity: 0.6; cursor: default; }
   }
   &__sessions-list { flex: 1; overflow-y: auto; }
-  &__sessions-empty { padding: 10px; color: #bbb; font-size: 12px; text-align: center; }
+  &__sessions-empty { padding: 6px 8px; color: #bbb; font-size: 11px; text-align: center; }
   &__session-item {
     position: relative;
-    padding: 8px 26px 8px 10px;
+    padding: 6px 22px 6px 8px;
     border-bottom: 1px solid #f3f1ff;
     cursor: pointer;
     &.active { background: #f2f0ff; }
   }
+  &__session-date { font-size: 10px; color: #7a7690; font-weight: 600; margin-bottom: 2px; }
   &__session-title { font-size: 12px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  &__session-date { font-size: 10px; color: #999; }
   &__session-delete {
     position: absolute; top: 6px; right: 6px;
     border: none; background: transparent; color: #d63031; cursor: pointer; font-size: 12px;
   }
 
   &__thread { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  &__empty, &__messages-hint { color: #bbb; font-size: 12px; text-align: center; margin: auto; padding: 16px; }
-  &__messages { flex: 1; overflow-y: auto; padding: 12px; }
+  &__empty {
+    color: #6e6b7b;
+    font-size: 12px;
+    text-align: left;
+    margin: 0;
+    padding: 8px 10px;
+  }
+  &__messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    &--empty {
+      flex: 0 0 0;
+      min-height: 0;
+      max-height: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 0;
+    }
+  }
 
   &__bubble {
     max-width: 85%;
-    margin-bottom: 10px;
-    padding: 8px 12px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
     border-radius: 10px;
     font-size: 13px;
     line-height: 1.45;
@@ -76,9 +116,245 @@
   &__bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 4px; }
 
   &__input {
-    display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eee;
-    textarea { flex: 1; resize: none; height: 44px; border: 1px solid #ddd; border-radius: 6px; padding: 8px; font-family: inherit; font-size: 13px; }
+    display: flex; gap: 6px; padding: 6px 8px; border-top: 1px solid #eee; align-items: flex-end;
+    textarea {
+      flex: 1; resize: none; min-height: 36px; max-height: 120px;
+      border: 1px solid #ddd; border-radius: 6px; padding: 6px 8px;
+      font-family: inherit; font-size: 13px; line-height: 1.4;
+    }
     button { padding: 0 16px; border: none; border-radius: 6px; background: #6c5ce7; color: #fff; font-weight: 700; cursor: pointer; }
     button:disabled { opacity: 0.5; cursor: default; }
   }
+  &__attach {
+    flex-shrink: 0;
+    width: 32px; height: 32px; padding: 0 !important;
+    border: 1px solid #6c5ce7 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #6c5ce7 !important;
+    font-size: 20px; font-weight: 700; line-height: 1;
+  }
+  &__send {
+    flex-shrink: 0;
+    min-width: 40px; height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px; line-height: 1;
+    padding: 0 10px !important;
+  }
+  &__send-icon {
+    display: block;
+    transform: translateX(1px);
+  }
+
+  &__plus-dd {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 20; /* above pastilles / purple bar when menu opens up */
+  }
+  /* REPLACE ugly purple-pill + menu with Vuexy / Documents ⋮ pattern */
+  &__plus-menu.dropdown-menu {
+    min-width: 248px;
+    max-width: 320px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 0.4rem 0 !important;
+    margin: 0.25rem 0 !important;
+    background: #ffffff !important;
+    background-clip: padding-box;
+    border: 1px solid #ebe9f1 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 5px 25px rgba(34, 41, 47, 0.1) !important;
+    z-index: 2000; /* body portal — above sidebar/navbar/panel */
+  }
+  &__plus-header.dropdown-header,
+  &__plus-menu .dropdown-header {
+    color: #5e5873 !important;
+    background: transparent !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.55rem 1rem 0.3rem !important;
+    margin: 0 !important;
+  }
+  &__plus-menu .dropdown-divider {
+    margin: 0.35rem 0;
+    border-top: 1px solid #ebe9f1;
+  }
+  &__plus-item.dropdown-item,
+  &__plus-menu .dropdown-item {
+    color: #6e6b7b !important;
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.4;
+    padding: 0.65rem 1rem !important;
+    margin: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  &__plus-item.dropdown-item:hover,
+  &__plus-item.dropdown-item:focus,
+  &__plus-menu .dropdown-item:hover,
+  &__plus-menu .dropdown-item:focus {
+    color: #5e5873 !important;
+    background: #f3f2f7 !important;
+    background-image: none !important;
+  }
+  &__plus-item.dropdown-item:active,
+  &__plus-item.dropdown-item.active,
+  &__plus-menu .dropdown-item:active,
+  &__plus-menu .dropdown-item.active {
+    color: #5e5873 !important;
+    background: rgba(115, 103, 240, 0.12) !important;
+  }
+  &__plus-item.dropdown-item:disabled,
+  &__plus-item.dropdown-item.disabled,
+  &__plus-menu .dropdown-item:disabled,
+  &__plus-menu .dropdown-item.disabled {
+    color: #b9b9c3 !important;
+    background: transparent !important;
+  }
+  &__plus-doc {
+    display: flex !important;
+    align-items: center;
+  }
+  &__plus-item.text-danger,
+  &__plus-menu .dropdown-item.text-danger {
+    color: #ea5455 !important;
+  }
+  &__plus-item.text-danger:hover,
+  &__plus-menu .dropdown-item.text-danger:hover {
+    color: #ea5455 !important;
+    background: #fceaea !important;
+  }
+  &__plus-doc-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+    font-weight: 500;
+  }
+  &__attach.btn,
+  &__attach.btn-light {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    border: 1px solid #6c5ce7 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #6c5ce7 !important;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: none !important;
+  }
+  &__attach.btn:hover,
+  &__attach.btn-light:hover,
+  &__attach.btn:focus,
+  &__attach.btn-light:focus {
+    background: #f2f0ff !important;
+    color: #6c5ce7 !important;
+    border-color: #6c5ce7 !important;
+  }
+
+  &__pastilles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 6px 10px;
+    background: #f7f5ff;
+    border-bottom: 1px solid #e0dcff;
+  }
+  &__pastille {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #d8d6de;
+    background: #fff;
+    color: #5e5873;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    &:hover {
+      border-color: #6c5ce7;
+      color: #6c5ce7;
+      background: #f2f0ff;
+    }
+    &.active {
+      background: #6c5ce7;
+      border-color: #6c5ce7;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+    }
+  }
+
+  /* Empty thread: composer fills panel body — no nested white frame (JF) */
+  &--composer-fill {
+    overflow: visible;
+    .simulator-chat-panel__body {
+      min-height: 140px;
+      overflow: visible;
+    }
+    .simulator-chat-panel__thread {
+      min-height: 140px;
+      overflow: visible;
+    }
+    .simulator-chat-panel__sessions {
+      overflow: visible;
+    }
+    .simulator-chat-panel__messages,
+    .simulator-chat-panel__messages--empty {
+      flex: 0 0 0 !important;
+      min-height: 0 !important;
+      max-height: 0 !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      border: 0 !important;
+    }
+    .simulator-chat-panel__input {
+      overflow: visible;
+      flex: 1 1 auto;
+      align-items: flex-end;
+      min-height: 140px;
+      padding: 10px 12px;
+      border-top: none;
+      background: transparent;
+    }
+    .simulator-chat-panel__input textarea {
+      align-self: stretch;
+      min-height: 112px;
+      max-height: none;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      outline: none;
+      background: transparent;
+      padding: 4px 2px;
+      resize: none;
+    }
+    .simulator-chat-panel__input textarea:focus {
+      border: none;
+      box-shadow: none;
+      outline: none;
+    }
+  }
+
 }

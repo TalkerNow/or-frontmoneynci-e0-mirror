@@ -183,7 +183,13 @@ export const loginWithJWT = (user) => {
 
           dispatch({ type: "CHANGE_ROLE", userRole: response.data.user.role });
 
-          history.push("/dashboard");
+          // Espace client MVP: role Client → /espace-client (séparé admin/consultant)
+          const roleLc = String(loggedInUser.role || "").toLowerCase();
+          if (roleLc === "client") {
+            history.push("/espace-client");
+          } else {
+            history.push("/dashboard");
+          }
 
         }
       })

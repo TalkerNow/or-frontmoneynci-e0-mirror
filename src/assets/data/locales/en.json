@@ -14,7 +14,7 @@
   "Todo": "Todo",
   "Calendar": "Calendar",
   "Ecommerce": "Ecommerce",
-  "Modèle de contrat":"Contract model",
+  "Modèle de contrat": "Contract model",
   "Contrats": "Contracts",
   "Membres": "Members",
   "Shop": "Shop",
@@ -163,5 +163,10 @@
   "Nb d'enfant(s)": "Number of children",
   "Numéro de sécurité Sociale": "Social security number",
   "Clé de sécurité Sociale": "Social security Key",
-  "text": "Cake sesame snaps cupcake gingerbread danish I love gingerbread. Apple pie pie jujubes chupa chups muffin halvah lollipop. Chocolate cake oat cake tiramisu marzipan sugar plum. Donut sweet pie oat cake dragée fruitcake cotton candy lemon drops."
+  "text": "Cake sesame snaps cupcake gingerbread danish I love gingerbread. Apple pie pie jujubes chupa chups muffin halvah lollipop. Chocolate cake oat cake tiramisu marzipan sugar plum. Donut sweet pie oat cake dragée fruitcake cotton candy lemon drops.",
+  "Leads": "Leads",
+  "Mails / contacts": "Mails / contacts",
+  "Inscrits": "Registered",
+  "Chatbots": "Chatbots",
+  "Mails": "Mails"
 }

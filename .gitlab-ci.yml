@@ -24,5 +24,5 @@ deploy_test:
       [vps-a1b847f6.vps.ovh.net]:5096 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBKVYsa3iJRyAu1j5pNDtSz0tr0NfRFsHX/tnTK8Q+vpXOeg/5mhOD7RSSDWeraekGCoKLo9DyRgshKKLSArKpx4=
       EOF
   script:
-    - ssh -p 5096 debian@vps-a1b847f6.vps.ovh.net "true"
+    - ssh -p 5096 debian@vps-a1b847f6.vps.ovh.net "~/redeploy-test.sh"
   timeout: 30m

@@ -1,12 +1,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
-import navigationConfig from "../../../../../configs/navigationConfig";
+import { getNavigationConfig } from "../../../../../configs/navigationConfig";
 import SideMenuGroup from "./SideMenuGroup";
 import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
 import { history } from "../../../../../history";
 import axios from "axios";
+import {
+  resolveActiveTrail,
+  isLeafRouteActive,
+  isCollapseNavActive,
+} from "../../../../utils/menuActiveMatch";
 
 // --- Helpers pour KPI (copié/adapté de KpiPage) ---
 const parseServices = (servicesRaw) => {
@@ -187,18 +192,14 @@ class SideMenuContent extends React.Component {
     });
   };
 
-  initRender = (parentArr) => {
+  // Route-derived open/active groups — leave section => highlight gone (JF).
+  initRender = (_parentArr) => {
     const activePath = this.props.activePath || this.props.activeItemState || "";
-    let active_groups = parentArr.slice(0);
-    if (activePath.includes("/kpi/inbox") && !active_groups.includes("crm-inbox")) {
-      active_groups.push("crm-inbox");
-    } else if (!activePath.includes("/kpi/inbox")) {
-      active_groups = active_groups.filter((id) => id !== "crm-inbox");
-    }
-
+    const navigationConfig = getNavigationConfig(this.props.currentUser);
+    const { groupIds } = resolveActiveTrail(navigationConfig, activePath);
     this.setState({
-      activeGroups: active_groups,
-      currentActiveGroup: active_groups,
+      activeGroups: groupIds.slice(),
+      currentActiveGroup: groupIds.slice(),
       flag: false,
     });
   };
@@ -370,10 +371,14 @@ class SideMenuContent extends React.Component {
 
       // Prepare items for deduplication
       const convsMapped = allConvs.map((c) => ({ ...c, _source: "chatbot" }));
-      const diagsMapped = allDiags.map((d) => ({
-        ...d,
-        _source: "diagnostic",
-      }));
+      // Diagnostic retraite gratuit : même règle que dans kpi/index.jsx —
+      // ne compte que si email + tel étaient déjà tous les deux présents à la création.
+      const diagsMapped = allDiags
+        .filter((d) => d.crm_eligible)
+        .map((d) => ({
+          ...d,
+          _source: "diagnostic",
+        }));
 
       const allRawItems = [...convsMapped, ...diagsMapped, ...relevantKpis];
 
@@ -433,10 +438,18 @@ class SideMenuContent extends React.Component {
       let totalUnread = 0;
 
       validItems.forEach((c) => {
-        const status = c.status || c.action || "new";
-
         // Determine type first to use in composite ID
         let type = c._source || c.type;
+
+        // Chatbot: is_read from API (no status column on conversation_archives)
+        let status;
+        if (type === "chatbot") {
+          const isRead =
+            c.is_read === true || c.is_read === 1 || c.is_read === "1";
+          status = isRead ? "read" : "new";
+        } else {
+          status = c.status || c.action || "new";
+        }
 
         const compositeId = `${type}-${c.id}`;
 
@@ -456,10 +469,10 @@ class SideMenuContent extends React.Component {
 
       this.setState({
         inboxBadge: totalUnread,
-        chatbotBadge: chatbotCount,
+        // chatbotBadge: from /conversation-archives/unread-count (is_read) — not stock
         diagnosticBadge: diagnosticCount,
-        callBadge: callCount,
-        emailBadge: emailCount,
+        callBadge: 0, // Appels: never show (Martin fiches only) — tip 2026-09-12
+        // emailBadge: set separately from /inbound-emails/unread-count (Mails child only)
         opportunitiesBadge: opportunitiesCount,
       });
     } catch (err) {
@@ -467,7 +480,56 @@ class SideMenuContent extends React.Component {
     }
   };
 
-  componentDidMount() {
+  // Chatbot pastille = unread conversations (is_read=0), same source as liste « Non lus (n) ».
+  fetchChatbotUnreadCount = () => {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .get(
+        global.config.server_url + "/conversation-archives/unread-count",
+        Config,
+      )
+      .then((res) => {
+        const n = Number(res?.data?.count);
+        this.setState({
+          chatbotBadge: Number.isFinite(n) && n > 0 ? n : 0,
+        });
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching chatbot unread count", err),
+      );
+  };
+
+  fetchTasksBadge = () => {
+    const Config = {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+      },
+    };
+    axios
+      .get(global.config.server_url + "/tasks?filter=all", Config)
+      .then((res) => {
+        const tasks = Array.isArray(res.data) ? res.data : [];
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const urgentTasks = tasks.filter((task) => {
+          if (!task.end_date) return false;
+          if (task.isCompleted) return false;
+          const endDate = new Date(task.end_date);
+          endDate.setHours(0, 0, 0, 0);
+          return endDate <= now;
+        });
+        this.setState({ tasksBadge: urgentTasks.length });
+      })
+      .catch((err) =>
+        console.error("❌ Error fetching urgent tasks count", err),
+      );
+  };
+
+    componentDidMount() {
     this.initRender(this.parentArr[0] ? this.parentArr[0] : []);
 
     const Config = {
@@ -478,6 +540,30 @@ class SideMenuContent extends React.Component {
 
     // Initial fetch
     this.fetchInboxCount();
+    this.fetchChatbotUnreadCount();
+
+    this._onInboxBadgeRefresh = () => {
+      this.fetchChatbotUnreadCount();
+      // keep mail badge in sync when inbox marks read
+      axios
+        .get(
+          global.config.server_url +
+            "/inbound-emails/unread-count?source=cf7",
+          {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          },
+        )
+        .then((res) => {
+          const n = Number(res?.data?.count);
+          this.setState({
+            emailBadge: Number.isFinite(n) && n > 0 ? n : 0,
+          });
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("eor-inbox-badge-refresh", this._onInboxBadgeRefresh);
 
     axios
       .get(global.config.server_url + "/suivi-avancement/all", Config)
@@ -511,28 +597,32 @@ class SideMenuContent extends React.Component {
       );
 
     // --- Fetch Urgent Tasks Count ---
+    this.fetchTasksBadge();
+
+    this._onTasksBadgeRefresh = () => {
+      this.fetchTasksBadge();
+    };
+    window.addEventListener(
+      "eor-tasks-badge-refresh",
+      this._onTasksBadgeRefresh,
+    );
+
+
+    // --- Mails/contacts child pastille only (NOT Contacts/Leads parents) ---
     axios
-      .get(global.config.server_url + "/tasks?filter=all", Config)
+      .get(
+        global.config.server_url +
+          "/inbound-emails/unread-count?source=cf7",
+        Config,
+      )
       .then((res) => {
-        const tasks = Array.isArray(res.data) ? res.data : [];
-
-        // Get today's date (without time) - same logic as TaskList.js
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-
-        // Count urgent tasks: end_date <= today AND isCompleted = false
-        const urgentTasks = tasks.filter((task) => {
-          if (!task.end_date) return false;
-          if (task.isCompleted) return false;
-          const endDate = new Date(task.end_date);
-          endDate.setHours(0, 0, 0, 0);
-          return endDate <= now; // <= pour inclure aujourd'hui
+        const n = Number(res?.data?.count);
+        this.setState({
+          emailBadge: Number.isFinite(n) && n > 0 ? n : 0,
         });
-
-        this.setState({ tasksBadge: urgentTasks.length });
       })
       .catch((err) =>
-        console.error("❌ Error fetching urgent tasks count", err),
+        console.error("❌ Error fetching inbound mail unread count", err),
       );
 
     // --- Fetch Unpaid Terminated Contracts Count ---
@@ -567,7 +657,20 @@ class SideMenuContent extends React.Component {
       );
   }
 
-  componentWillUnmount() {}
+  componentWillUnmount() {
+    if (this._onInboxBadgeRefresh) {
+      window.removeEventListener(
+        "eor-inbox-badge-refresh",
+        this._onInboxBadgeRefresh,
+      );
+    }
+    if (this._onTasksBadgeRefresh) {
+      window.removeEventListener(
+        "eor-tasks-badge-refresh",
+        this._onTasksBadgeRefresh,
+      );
+    }
+  }
 
   componentDidUpdate(prevProps, prevState) {
     if (prevProps.activePath !== this.props.activePath) {
@@ -582,6 +685,12 @@ class SideMenuContent extends React.Component {
   }
 
   render() {
+    const pathname = this.props.activePath || this.props.activeItemState || "";
+    const navigationConfig = getNavigationConfig(this.props.currentUser);
+    const { groupIds: routeGroupIds, leafId: activeLeafId } = resolveActiveTrail(
+      navigationConfig,
+      pathname,
+    );
     // Loop over sidebar items
     // eslint-disable-next-line
     const menuItems = navigationConfig.map((item) => {
@@ -602,30 +711,17 @@ class SideMenuContent extends React.Component {
           className={classnames("nav-item", {
             "has-sub": item.type === "collapse",
             open: this.state.activeGroups.includes(item.id),
-            "sidebar-group-active": this.state.currentActiveGroup.includes(
-              item.id,
-            ),
+            "sidebar-group-active": routeGroupIds.includes(item.id),
             hover: this.props.hoverIndex === item.id,
-            // ✅ active UNIQUEMENT pour les items (pas les parents)
+            // Leaf exact match; OR Clients mother when on clientslist (no leaf)
             active:
-              item.type === "item" &&
-              (this.props.activeItemState === item.navLink ||
-                (item.filterBase &&
-                  this.props.activeItemState === item.filterBase) ||
-                (item.navLink &&
-                  item.navLink.includes(":") &&
-                  this.props.activeItemState.startsWith(
-                    item.navLink.split(":")[0],
-                  )) ||
-                (item.parentOf &&
-                  item.parentOf.includes(this.props.activeItemState))),
+              isLeafRouteActive(item, pathname, activeLeafId) ||
+              isCollapseNavActive(item, pathname, activeLeafId),
             disabled: item.disabled,
           })}
           key={item.id}
           onClick={(e) => {
             e.stopPropagation();
-
-            const clickedCaret = e.target.closest(".menu-toggle-icon");
 
             if (item.type === "item") {
               this.props.handleActiveItem(item.navLink);
@@ -637,11 +733,11 @@ class SideMenuContent extends React.Component {
             }
 
             if (item.type === "collapse") {
-              if (clickedCaret) {
-                this.handleGroupClick(item.id, null, item.type);
-                return;
-              }
-              if (item.navLink) {
+              // Whole parent row toggles (Clients + Leads), not only the chevron.
+              const wasOpen = this.state.activeGroups.includes(item.id);
+              this.handleGroupClick(item.id, null, item.type);
+              // Clients (has navLink): opening also navigates; closing just closes.
+              if (item.navLink && !wasOpen) {
                 const targetLink =
                   item.id === "kpi" && this.state.crmBadge > 0
                     ? "/kpi/suivi"
@@ -651,9 +747,7 @@ class SideMenuContent extends React.Component {
                 if (this.props.deviceWidth <= 1200) {
                   this.props.toggleMenu();
                 }
-                return;
               }
-              this.handleGroupClick(item.id, null, item.type);
               return;
             }
           }}
@@ -745,6 +839,7 @@ class SideMenuContent extends React.Component {
               </span>
             ) : null}
 
+
             {/* ✅ Badge Tâches Urgentes */}
             {item.id === "tasks" && this.state.tasksBadge > 0 ? (
               <span
@@ -818,7 +913,9 @@ class SideMenuContent extends React.Component {
               initRender={this.initRender}
               parentArr={this.parentArr}
               triggerActive={undefined}
-              currentActiveGroup={this.state.currentActiveGroup}
+              currentActiveGroup={routeGroupIds}
+              routeGroupIds={routeGroupIds}
+              activeLeafId={activeLeafId}
               permission={this.props.permission}
               currentUser={this.props.currentUser}
               redirectUnauthorized={this.redirectUnauthorized}

@@ -112,7 +112,11 @@ export function formatPhoneNumber(input) {
 // Helper: Format date to relative time
 export function formatRelativeDate(isoDate) {
   if (!isoDate) return "";
-  const date = new Date(isoDate);
+  let raw = isoDate;
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:/.test(raw)) {
+    raw = raw.replace(" ", "T");
+  }
+  const date = new Date(raw);
   const now = new Date();
 
   // Check if same day
@@ -156,6 +160,343 @@ export function extractSummaryFromMessages(messages) {
 }
 
 // Helper: Map conversation from backend to inbox item
+
+/**
+ * Parse CF7 contact-form body/snippet (Gmail ingest).
+ * Official layout (label then value):
+ *   Message reçu via le formulaire de contact
+ *   Nom, prénom / Téléphone / Adresse mail / Date de naissance /
+ *   Vous êtes intéressé·e par / Message /
+ *   Formulaire rempli sur le site EOR : https://www.eor.fr/…
+ * Snippet often holds the full CF7 text (no body column yet).
+ */
+export function parseCf7ContactBody(text) {
+  const empty = {
+    firstName: "",
+    lastName: "",
+    name: "",
+    phone: "",
+    email: "",
+    birthDate: "",
+    interest: "",
+    message: "",
+    channel: "",
+    formUrl: "",
+  };
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return empty;
+
+  const nextLabel =
+    "(?=\\s*(?:Téléphone|Telephone|Adresse\\s*(?:e-?mail|mail)|E-?mail|Date\\s*de\\s*naissance|Statut|Vous\\s*êtes|Besoin|Message|Votre\\s*message|Formulaire\\s+rempli)\\b|$)";
+
+  let channel = "";
+  if (/(?:Nouveau\s+)?[Mm]essage\s+reçu\s+via\s+le\s+formulaire\s+de\s+contact/i.test(raw)) {
+    channel = "Message reçu via le formulaire de contact";
+  }
+
+  let firstName = "";
+  let lastName = "";
+  let name = "";
+
+  // "Prénom, Nom VALUE" → first token = prénom, rest = nom
+  let m = raw.match(
+    new RegExp("(?:Prénom|Prenom)\\s*,\\s*Nom\\s+(.+?)" + nextLabel, "i"),
+  );
+  if (m) {
+    name = m[1].trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    const nameParts = [...parts];
+    if (
+      nameParts.length &&
+      /^(m\.?|mr\.?|mme\.?|mlle\.?|monsieur|madame)$/i.test(nameParts[0])
+    ) {
+      nameParts.shift();
+    }
+    if (nameParts.length === 1) {
+      firstName = nameParts[0];
+    } else if (nameParts.length > 1) {
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(" ");
+    }
+  } else {
+    // "Nom, prénom VALUE" — keep civility in display name (Mr Serge RICHARD)
+    m = raw.match(
+      new RegExp("Nom\\s*,\\s*(?:Prénom|Prenom)\\s+(.+?)" + nextLabel, "i"),
+    );
+    if (m) {
+      name = m[1].trim();
+      const parts = name.split(/\s+/).filter(Boolean);
+      const nameParts = [...parts];
+      if (
+        nameParts.length &&
+        /^(m\.?|mr\.?|mme\.?|mlle\.?|monsieur|madame)$/i.test(nameParts[0])
+      ) {
+        nameParts.shift();
+      }
+      if (nameParts.length === 1) {
+        lastName = nameParts[0];
+      } else if (nameParts.length === 2) {
+        firstName = nameParts[0];
+        lastName = nameParts[1];
+      } else if (nameParts.length > 2) {
+        firstName = nameParts.slice(0, -1).join(" ");
+        lastName = nameParts[nameParts.length - 1];
+      }
+    }
+  }
+
+  let phone = "";
+  m = raw.match(
+    new RegExp(
+      "(?:Téléphone|Telephone)\\s*[:\\s]\\s*([+0-9][0-9.\\s/-]{6,})" + nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    phone = m[1].replace(/[.\s/-]/g, "").trim();
+  }
+
+  let email = "";
+  m = raw.match(
+    /(?:Adresse\s*(?:e-?mail|mail)|E-?mail)\s*[:\s]\s*([^\s]+@[^\s]+)/i,
+  );
+  if (m) {
+    email = m[1].replace(/[>,;]+$/, "").trim();
+  }
+
+  let birthDate = "";
+  m = raw.match(
+    new RegExp(
+      "Date\\s*de\\s*naissance\\s*[:\\s]\\s*([0-9]{1,2}[/.-][0-9]{1,2}[/.-][0-9]{2,4})" +
+        nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    birthDate = m[1].trim();
+  }
+
+  let interest = "";
+  m = raw.match(
+    new RegExp(
+      "Vous\\s*êtes\\s*intéressé[·.•\\s]*e?\\s*par\\s+(.+?)" + nextLabel,
+      "i",
+    ),
+  );
+  if (m) {
+    interest = m[1].trim();
+  }
+
+  let message = "";
+  // Avoid matching intro « Message reçu via le formulaire… »
+  m = raw.match(
+    /(?:Votre\s+message|\bMessage(?!\s+reçu)\b)\s+(.+?)(?=\s*Formulaire\s+rempli\s+sur|\s*$)/i,
+  );
+  if (m) {
+    message = m[1].trim();
+  }
+  // Nouveau CF7 layout: "Besoin …" often holds the question when Message absent / snippet truncated
+  let besoin = "";
+  m = raw.match(/Besoin\s+(.+?)(?=\s*Formulaire\s+rempli\s+sur|\s*$)/i);
+  if (m) {
+    besoin = m[1].trim();
+  }
+  if (!interest && besoin) {
+    interest = besoin;
+  }
+  if (!message && besoin) {
+    message = besoin;
+  }
+  // Statut professionnel (Nouveau layout)
+  m = raw.match(
+    new RegExp("Statut\\s+professionnel\\s+(.+?)" + nextLabel, "i"),
+  );
+  // keep in message trail only if still empty and we have leftover after birth
+  if (!message) {
+    m = raw.match(
+      /Date\s*de\s*naissance\s*[:\s]\s*[0-9/. -]{8,12}\s*(.+)$/i,
+    );
+    if (m) {
+      const rest = m[1].trim();
+      if (rest && !/^Formulaire\s+rempli/i.test(rest)) {
+        message = rest;
+      }
+    }
+  }
+
+  let formUrl = "";
+  m = raw.match(
+    /Formulaire\s+rempli\s+sur\s+le\s+site\s+EOR\s*:\s*(https?:\/\/[^\s]+)/i,
+  );
+  if (m) {
+    formUrl = m[1].replace(/[.,;)\]]+$/, "").trim();
+  } else {
+    m = raw.match(/(https?:\/\/(?:www\.)?eor\.fr\/[^\s]+)/i);
+    if (m) {
+      formUrl = m[1].replace(/[.,;)\]]+$/, "").trim();
+    }
+  }
+
+  return {
+    firstName,
+    lastName,
+    name,
+    phone,
+    email,
+    birthDate,
+    interest,
+    message,
+    channel,
+    formUrl,
+  };
+}
+
+/**
+ * Map inbound_emails row (source=cf7 only) → inbox item.
+ * CF7: parse Prénom/Nom + téléphone + email from snippet/body;
+ * detail pane = FULL body/snippet (not truncated); keep gmail_permalink.
+ */
+export function mapInboundEmailToInboxItem(row) {
+  if (!row) return null;
+  const fromName = (row.from_name || "").trim();
+  const fromEmail = (row.from_email || "").trim();
+  const subject = (row.subject || "").trim();
+  const snippet = (row.snippet || "").trim();
+  // No body column yet — snippet is the body content for detail (show FULL text)
+  const body = (row.body || row.snippet || "").trim();
+  const src = String(row.source || "").toLowerCase();
+  const cf7 =
+    src === "cf7" ? parseCf7ContactBody(body || snippet) : null;
+
+  const firstName = (cf7 && cf7.firstName) || fromName || "";
+  const lastName = (cf7 && cf7.lastName) || "";
+  const email = (cf7 && cf7.email) || fromEmail || "";
+  const phone = (cf7 && cf7.phone) || "";
+  const birthDate = (cf7 && cf7.birthDate) || "";
+  const interest = (cf7 && cf7.interest) || "";
+  const cf7Message = (cf7 && cf7.message) || "";
+  const channel = (cf7 && cf7.channel) || "";
+  const formUrl = (cf7 && cf7.formUrl) || "";
+  const displayName =
+    (cf7 && cf7.name) ||
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
+    fromName ||
+    fromEmail ||
+    email ||
+    subject ||
+    "Mail entrant";
+
+  const when = row.received_at || row.created_at || null;
+  let whenIso = when;
+  if (typeof whenIso === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:/.test(whenIso)) {
+    whenIso = whenIso.replace(" ", "T");
+  }
+  const isRead = row.is_read === true || row.is_read === 1 || row.is_read === "1";
+  return {
+    id: row.id,
+    clientId: row.client_id || null,
+    type: "email",
+    name: displayName,
+    firstName,
+    lastName,
+    email,
+    phone,
+    birthDate,
+    interest,
+    cf7Message,
+    channel,
+    formUrl,
+    subject,
+    snippet,
+    body,
+    date: formatRelativeDate(whenIso),
+    receivedAt: when,
+    score: 0,
+    summary: [subject, snippet].filter(Boolean),
+    status: isRead ? "read" : "new",
+    priority: "medium",
+    hasMultipleChannels: false,
+    gmailPermalink: row.gmail_permalink || null,
+    gmailMessageId: row.gmail_message_id || null,
+    raw: { ...row, _source: "email", source: row.source },
+  };
+}
+
+
+/**
+ * Short CF7 quote for Gmail compose (Répondre) — Nom, Tél, Email, Message/intérêt.
+ */
+export function buildCf7QuotedBody(item) {
+  if (!item) return "";
+  const lines = [];
+  const name = (item.name || "").trim();
+  const phone = (item.phone || "").trim();
+  const email = (item.email || "").trim();
+  const msg = (item.cf7Message || "").trim();
+  const interest = (item.interest || "").trim();
+  if (name) lines.push(`Nom: ${name}`);
+  if (phone) lines.push(`Tél: ${phone}`);
+  if (email) lines.push(`Email: ${email}`);
+  if (msg) lines.push(`Message: ${msg}`);
+  if (interest) lines.push(`Intérêt: ${interest}`);
+  return lines.join("\n");
+}
+
+/**
+ * Gmail compose URL for CF7 reply (client-side only — no SMTP/outbox).
+ * If no prospect email: mailto: fallback with same subject/body.
+ */
+/** Deep-link Gmail to the ingested message on contact@ (not jfc@ u/0 inbox). */
+export function buildGmailOpenHref(item) {
+  if (!item) return null;
+  const mid = (item.gmailMessageId || item.gmail_message_id || "").trim();
+  const auth = "contact@eor.fr";
+  if (mid) {
+    // Search by id works across mailboxes; authuser forces contact@ session
+    return (
+      "https://mail.google.com/mail/?authuser=" +
+      encodeURIComponent(auth) +
+      "#search/" +
+      encodeURIComponent(mid)
+    );
+  }
+  const permalink = (item.gmailPermalink || item.gmail_permalink || "").trim();
+  if (permalink) {
+    // Rewrite u/0 → authuser=contact@ when possible
+    try {
+      const u = new URL(permalink);
+      u.searchParams.set("authuser", auth);
+      return u.toString().replace("/mail/u/0/", "/mail/").replace("/mail/u/1/", "/mail/");
+    } catch (e) {
+      return permalink;
+    }
+  }
+  return null;
+}
+
+export function buildCf7ReplyHref(item) {
+  if (!item) return { href: null, disabled: true };
+  const email = (item.email || "").trim();
+  const subjectOrName = (item.subject || item.name || "Contact site").trim();
+  const su = `Re: ${subjectOrName}`;
+  const quoted = buildCf7QuotedBody(item);
+  const body = quoted
+    ? `Bonjour,\n\n\n\n---\nDemande reçue via le site :\n${quoted}`
+    : "";
+  if (email) {
+    const href =
+      "https://mail.google.com/mail/?view=cm&fs=1" +
+      `&to=${encodeURIComponent(email)}` +
+      `&su=${encodeURIComponent(su)}` +
+      `&body=${encodeURIComponent(body)}`;
+    return { href, disabled: false };
+  }
+  const mailto =
+    `mailto:?subject=${encodeURIComponent(su)}` +
+    `&body=${encodeURIComponent(body)}`;
+  return { href: mailto, disabled: !body, fallbackMailto: true };
+}
+
 export function mapConversationToInboxItem(conv) {
   const type =
     conv._source ||
@@ -310,11 +651,46 @@ export function mapConversationToInboxItem(conv) {
           : conv.objet
             ? [conv.objet]
             : [],
-    status: conv.status || conv.action || "new",
+    status: (() => {
+      // Chatbot: real unread from conversation_archives.is_read (tip 2026-09-12)
+      if (type === "chatbot") {
+        const isRead =
+          conv.is_read === true ||
+          conv.is_read === 1 ||
+          conv.is_read === "1";
+        return isRead ? "read" : "new";
+      }
+      return conv.status || conv.action || "new";
+    })(),
     priority: conv.priority || "medium",
     hasMultipleChannels: conv._hasMultipleChannels || false,
     raw: conv,
   };
+}
+
+/**
+ * True if we recovered an email OR a phone from the conversation
+ * (same extract as mapConversationToInboxItem). Used for Leads > Chatbot pastille.
+ * Does NOT use is_read / unread stock.
+ */
+export function conversationHasContact(conv) {
+  if (!conv) return false;
+  let messages = conv.messages;
+  if (typeof messages === "string") {
+    try {
+      messages = JSON.parse(messages);
+    } catch (e) {
+      messages = [];
+    }
+  }
+  const item = mapConversationToInboxItem({
+    ...conv,
+    messages: Array.isArray(messages) ? messages : conv.messages,
+    _source: conv._source || "chatbot",
+  });
+  const email = String(item.email || "").trim();
+  const phoneDigits = String(item.phone || "").replace(/\D/g, "");
+  return Boolean(email) || phoneDigits.length >= 9;
 }
 
 export const getTypeIcon = (type) => {

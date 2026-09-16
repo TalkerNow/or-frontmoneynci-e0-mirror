@@ -9,7 +9,6 @@ import { history } from "../../../../history";
 import "../../../../assets/scss/plugins/tables/_agGridStyleOverride.scss";
 import "../../../../assets/scss/pages/users.scss";
 import SweetAlert from "react-bootstrap-sweetalert";
-import Moment from "react-moment";
 import Chip from "../../../../../src/components/@vuexy/chips/ChipComponent";
 
 // === Couleurs pastilles identiques à la liste des contrats ===
@@ -77,6 +76,22 @@ const ALLOWED_EMAILS = [
   "sebastien@eor.fr",
 ];
 
+/** Prospects / Mes Clients leaf paths (or ?tab=) → ClientsList tab. */
+const resolveClientsListTab = (location) => {
+  const loc =
+    location ||
+    (history && history.location) ||
+    (typeof window !== "undefined" && window.location) ||
+    {};
+  const pathname = loc.pathname || "";
+  const search = loc.search || "";
+  if (pathname.indexOf("prospectslist") !== -1) return "prospect";
+  if (search.indexOf("tab=prospect") !== -1) return "prospect";
+  if (pathname.indexOf("mesclientslist") !== -1) return "mine";
+  if (search.indexOf("tab=mine") !== -1) return "mine";
+  return "all";
+};
+
 class ClientsList extends React.Component {
   state = {
     defaultAlert: false,
@@ -85,7 +100,7 @@ class ClientsList extends React.Component {
     IdToDelete: 0,
     rowData: null,
     allRowData: null, // Données brutes complètes (clients + prospects)
-    activeTab: "all", // Onglet actif: "all", "client", "prospect"
+    activeTab: resolveClientsListTab(), // "all" | "mine" | "old_client" | "prospect"
     pageSize: 50,
     defaultColDef: {
       resizable: true,
@@ -103,6 +118,12 @@ class ClientsList extends React.Component {
     phoneQueryDigits: "",
     // Map userId -> array de services (depuis le dernier document)
     servicesByUserId: {},
+    // Tip D: flags source CF7 / Chatbot / Diagnostic (batch endpoints, no users?include=)
+    sourceFlagsByUserId: {},
+    // Contacts pack: TOP pastilles filtre source (exclusive single-select)
+    sourceFilter: null, // null | "cf7" | "chatbot" | "diagnostic"
+    // Cap'tain GO 2026-09-15: Prestation pastilles filter (mine tab ONLY)
+    prestationFilter: null, // null | "CH" | "AR" | "TFD" | "SIMU" | "RAC"
     gridOptions: {
       onCellClicked: (params) => {
         const colKey = params?.colDef?.field || params?.colDef?.colId;
@@ -126,52 +147,140 @@ class ClientsList extends React.Component {
       suppressRowClickSelection: true,
     },
     columnDefs: [
-      // ====== COLONNE "Type" - Badge Client/Prospect ======
+      // ====== COLONNE "Type" - pastilles v1 (Client/Prospect/Ancien/Perdue) + tip D sources ======
       {
         headerName: "Type",
         field: "role",
         colId: "type",
         filter: false,
-        width: 100,
-        minWidth: 100,
+        width: 200,
+        minWidth: 180,
         flex: 0,
         cellStyle: {
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "flex-start",
+          gap: "4px",
+          flexWrap: "wrap",
         },
         cellRendererFramework: (params) => {
+          // JF/Cap'tain 2026-09-11 Type pastilles v1 (TEST):
+          // Perdue > Ancien > Prospect > Client. Bot/Diag hors v1.
           const role = (params?.data?.role || "").toLowerCase();
-          const isProspect = role === "prospect";
+          const status = (params?.data?.status || "").toLowerCase();
+          const base = { fontSize: "0.75rem", fontWeight: 600 };
+          let label = "CLIENT";
+          let color = "light-success";
+          let style = { ...base };
+
+          if (status === "perdu") {
+            label = "PERDUE";
+            color = undefined;
+            style = {
+              ...base,
+              backgroundColor: "#fce8e8",
+              color: "#ea5455",
+            };
+          } else if (role === "old_client") {
+            label = "ANCIEN";
+            color = undefined;
+            style = {
+              ...base,
+              backgroundColor: "#e9ecef",
+              color: "#6c757d",
+            };
+          } else if (role === "prospect") {
+            label = "PROSPECT";
+            color = undefined;
+            style = {
+              ...base,
+              backgroundColor: "#fde8dc",
+              color: "#c45c26",
+            };
+          }
+
+          const uid = params?.data?.id;
+          const flags =
+            (uid != null &&
+              this.state.sourceFlagsByUserId &&
+              this.state.sourceFlagsByUserId[uid]) ||
+            {};
+          const pillBase = { fontSize: "0.75rem", fontWeight: 600, marginLeft: 2 };
+          const sourcePills = [];
+          if (flags.cf7) {
+            sourcePills.push(
+              <Badge
+                key="cf7"
+                pill
+                style={{
+                  ...pillBase,
+                  backgroundColor: "#eef2ff",
+                  color: "#4f46e5",
+                }}
+              >
+                CF7
+              </Badge>
+            );
+          }
+          if (flags.chatbot) {
+            sourcePills.push(
+              <Badge
+                key="chatbot"
+                pill
+                style={{
+                  ...pillBase,
+                  backgroundColor: "#e8f4fd",
+                  color: "#1e88e5",
+                }}
+              >
+                Chatbot
+              </Badge>
+            );
+          }
+          if (flags.diagnostic) {
+            sourcePills.push(
+              <Badge
+                key="diagnostic"
+                pill
+                style={{
+                  ...pillBase,
+                  backgroundColor: "#fff3e0",
+                  color: "#ef6c00",
+                }}
+              >
+                Diag
+              </Badge>
+            );
+          }
+          // Type Inscrit: ONLY if real user flag exists — DO NOT invent FK/BDD/sourceFlags.inscrit.
+          // No real flag today → never render Type Inscrit.
+
           return (
-            <Badge
-              color={isProspect ? undefined : "light-success"}
-              pill
-              style={
-                isProspect
-                  ? {
-                      backgroundColor: "#dbeafe",
-                      color: "#2c6ddf",
-                      fontSize: "0.75rem",
-                    }
-                  : { fontSize: "0.75rem" }
-              }
-            >
-              {isProspect ? "PROSPECT" : "CLIENT"}
-            </Badge>
+            <div className="d-flex align-items-center" style={{ gap: 4, flexWrap: "wrap" }}>
+              <Badge color={color} pill style={style}>
+                {label}
+              </Badge>
+              {sourcePills}
+            </div>
           );
         },
       },
       {
         headerName: "Création",
         filter: true,
-        width: 120,
+        width: 130,
         minWidth: 120,
         flex: 0,
         cellRendererFramework: (params) => {
+          const { date, time } = this.formatCreationBrussels(
+            params?.data?.created_at,
+          );
           return (
-            <div>
-              <Moment format="DD/MM/YYYY" date={params.data.created_at} utc />
+            <div style={{ lineHeight: 1.15 }}>
+              <div>{date}</div>
+              {time ? (
+                <div style={{ fontSize: "0.7rem", color: "#6e6b7b" }}>{time}</div>
+              ) : null}
             </div>
           );
         },
@@ -388,6 +497,77 @@ class ClientsList extends React.Component {
     return Number.isNaN(n) ? String(v) : n;
   };
 
+  // Contacts pack: Création date + HHhMM in Europe/Brussels
+  formatCreationBrussels = (iso) => {
+    if (!iso) return { date: "-", time: "" };
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return { date: "-", time: "" };
+      const dateParts = new Intl.DateTimeFormat("fr-BE", {
+        timeZone: "Europe/Brussels",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).formatToParts(d);
+      const get = (parts, t) =>
+        (parts.find((p) => p.type === t) || {}).value || "";
+      const date = `${get(dateParts, "day")}/${get(dateParts, "month")}/${get(
+        dateParts,
+        "year",
+      )}`;
+      const timeParts = new Intl.DateTimeFormat("fr-BE", {
+        timeZone: "Europe/Brussels",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(d);
+      const hh = get(timeParts, "hour");
+      const mm = get(timeParts, "minute");
+      const time = hh && mm ? `${hh}h${mm}` : "";
+      return { date, time };
+    } catch (e) {
+      return { date: "-", time: "" };
+    }
+  };
+
+  // Contacts pack: intersect rows with tip D sourceFlagsByUserId
+  applySourceFilterToRows = (rows) => {
+    const { sourceFilter, sourceFlagsByUserId } = this.state;
+    if (!sourceFilter) return rows || [];
+    return (rows || []).filter((u) => {
+      const flags =
+        (sourceFlagsByUserId && u && u.id != null && sourceFlagsByUserId[u.id]) ||
+        {};
+      return !!flags[sourceFilter];
+    });
+  };
+
+  // Contacts pack: TOP pastilles exclusive single-select (re-click clears)
+  setSourceFilter = (key) => {
+    const next = this.state.sourceFilter === key ? null : key;
+    this.setState({ sourceFilter: next, prestationFilter: null }, () => {
+      this.toggleTab(this.state.activeTab || "all");
+    });
+  };
+
+  applyPrestationFilterToRows = (rows) => {
+    const { prestationFilter, servicesByUserId } = this.state;
+    if (!prestationFilter) return rows || [];
+    return (rows || []).filter((u) => {
+      const services =
+        (servicesByUserId && u && u.id != null && servicesByUserId[u.id]) || [];
+      return Array.isArray(services) && services.indexOf(prestationFilter) !== -1;
+    });
+  };
+
+  // Cap'tain GO: Prestation pastilles exclusive (mine tab); re-click clears
+  setPrestationFilter = (key) => {
+    const next = this.state.prestationFilter === key ? null : key;
+    this.setState({ prestationFilter: next, sourceFilter: null }, () => {
+      this.toggleTab(this.state.activeTab || "mine");
+    });
+  };
+
   getOwnerIdFromRow = (row) => {
     // Essaie plusieurs champs possibles pour l'ID "créateur/propriétaire/technicien"
     const candidates = [
@@ -473,6 +653,81 @@ class ClientsList extends React.Component {
     return map;
   };
 
+  // Tip D PERF-SAFE: batch source flags (no users?include= archives)
+  fetchSourceFlags = async (Config) => {
+    const base = global.config.server_url;
+    const empty = new Set();
+    const toRows = (data) => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.data)) return data.data;
+      return [];
+    };
+    const safeGet = async (url) => {
+      try {
+        const res = await axios.get(url, Config);
+        return toRows(res.data);
+      } catch (e) {
+        console.warn("Tip D source flag fetch failed", url, e?.message || e);
+        return [];
+      }
+    };
+
+    const [cf7Rows, archiveRows, diagRows] = await Promise.all([
+      safeGet(base + "/inbound-emails?source=cf7&per_page=200"),
+      safeGet(base + "/conversation-archives?per_page=200"),
+      safeGet(base + "/simulator-difficulty-results?per_page=200").then(async (rows) => {
+        if (rows.length) return rows;
+        // dig: endpoint may live under /v1/
+        return safeGet(base + "/v1/simulator-difficulty-results?per_page=200");
+      }),
+    ]);
+
+    const cf7Ids = new Set();
+    cf7Rows.forEach((r) => {
+      const id = r.client_id ?? r.clientId;
+      if (id != null && id !== "") cf7Ids.add(String(id));
+    });
+
+    const chatbotIds = new Set();
+    archiveRows.forEach((r) => {
+      const id = r.user_id ?? r.userId ?? (r.user && r.user.id);
+      if (id != null && id !== "") chatbotIds.add(String(id));
+    });
+
+    const diagIds = new Set();
+    diagRows.forEach((r) => {
+      const id = r.user_id ?? r.userId ?? (r.user && r.user.id);
+      if (id != null && id !== "") diagIds.add(String(id));
+    });
+
+    const allIds = new Set([...cf7Ids, ...chatbotIds, ...diagIds]);
+    const sourceFlagsByUserId = {};
+    allIds.forEach((id) => {
+      // store under both string and numeric key when possible
+      const flags = {
+        cf7: cf7Ids.has(id),
+        chatbot: chatbotIds.has(id),
+        diagnostic: diagIds.has(id),
+      };
+      sourceFlagsByUserId[id] = flags;
+      const n = Number(id);
+      if (!Number.isNaN(n)) sourceFlagsByUserId[n] = flags;
+    });
+
+    this.setState({ sourceFlagsByUserId }, () => {
+      if (this.gridApi) {
+        try {
+          this.gridApi.refreshCells({ force: true, columns: ["type"] });
+        } catch (e) {}
+      }
+      // Contacts pack: if TOP source filter active, re-intersect now that flags exist
+      if (this.state.sourceFilter) {
+        this.toggleTab(this.state.activeTab || "all");
+      }
+    });
+  };
+
   async componentDidMount() {
     const Config = {
       headers: {
@@ -540,13 +795,14 @@ class ClientsList extends React.Component {
       // Afficher page 1 immédiatement
       const sortedPage1 = buildSorted(clientsPage1);
       this.setState(
-        { allRowData: sortedPage1, rowData: sortedPage1, servicesByUserId },
+        { allRowData: sortedPage1, servicesByUserId },
         () => {
-          if (this.gridApi && this.isExternalFilterPresent()) {
-            this.gridApi.onFilterChanged();
-          }
+          this.toggleTab(resolveClientsListTab(this.props.location));
         },
       );
+
+      // Tip D: batch source flags after clients loaded (degrade → empty)
+      this.fetchSourceFlags(Config);
 
       // Charger les pages suivantes en arrière-plan si nécessaire
       if (clientsLastPage > 1) {
@@ -562,10 +818,8 @@ class ClientsList extends React.Component {
           );
           const allClients = [...clientsPage1, ...extraClients];
           const sortedAll = buildSorted(allClients);
-          this.setState({ allRowData: sortedAll, rowData: sortedAll }, () => {
-            if (this.gridApi && this.isExternalFilterPresent()) {
-              this.gridApi.onFilterChanged();
-            }
+          this.setState({ allRowData: sortedAll }, () => {
+            this.toggleTab(this.state.activeTab || resolveClientsListTab(this.props.location));
           });
         }).catch((e) => {
           console.error("Erreur chargement pages clients supplémentaires", e);
@@ -650,7 +904,17 @@ class ClientsList extends React.Component {
       );
     }
 
-    this.setState({ activeTab: tab, rowData: filteredData }, () => {
+    // Cap'tain GO: source pastilles on Tous/Anciens/Prospects; Prestation on mine only
+    const nextState = { activeTab: tab };
+    if (tab === "mine") {
+      nextState.sourceFilter = null;
+      filteredData = this.applyPrestationFilterToRows(filteredData);
+    } else {
+      nextState.prestationFilter = null;
+      filteredData = this.applySourceFilterToRows(filteredData);
+    }
+
+    this.setState({ ...nextState, rowData: filteredData }, () => {
       if (this.gridApi) {
         this.gridApi.onFilterChanged();
       }
@@ -1043,24 +1307,16 @@ class ClientsList extends React.Component {
                       value={this.state.searchVal}
                       style={{ flex: 1 }}
                     />
-
-                    {/* Bouton d'action principal */}
-                    <Button
-                      color="success"
-                      onClick={() => history.push("/app/user/createUser")}
-                      title="Créer un compte"
-                    >
-                      <UserPlus size={18} />
-                      <span className="ml-1 d-none d-sm-inline">Nouveau</span>
-                    </Button>
+                    {/* Lot1 JF 23:09: +bonhomme Nouveau removed (déjà fiche) */}
                   </div>
 
-                  {/* === BAS : Onglets (Tous, Mes Clients, Anciens, Prospects) === */}
+                  {/* === Onglets + pastilles source (after Prospects, same line) === */}
                   <div
                     className="d-flex align-items-center"
                     style={{
                       gap: "2.5rem",
                       overflowX: "auto",
+                      flexWrap: "wrap",
                     }}
                   >
                     {/* Onglet TOUS */}
@@ -1092,7 +1348,7 @@ class ClientsList extends React.Component {
                       }}
                       onClick={() => this.toggleTab("mine")}
                     >
-                      Mes Clients
+                      Clients
                     </div>
 
                     {/* Onglet ANCIENS CLIENTS */}
@@ -1124,8 +1380,119 @@ class ClientsList extends React.Component {
                       }}
                       onClick={() => this.toggleTab("prospect")}
                     >
-                      Prospects
+                      Leads
                     </div>
+
+                    {/* Cap'tain GO: source pastilles OR Prestation pastilles (mine) — RIGHT same line */}
+                    {activeTab === "mine" ? (
+                      <div
+                        className="d-flex align-items-center"
+                        style={{
+                          gap: "0.5rem",
+                          flexWrap: "wrap",
+                          marginLeft: "auto",
+                        }}
+                      >
+                        {["CH", "AR", "TFD", "SIMU", "RAC"].map((code) => {
+                          const active = this.state.prestationFilter === code;
+                          return (
+                            <div
+                              key={code}
+                              className="cursor-pointer"
+                              onClick={() => this.setPrestationFilter(code)}
+                              title={
+                                active
+                                  ? "Cliquer pour retirer le filtre"
+                                  : `Filtrer Prestation ${code}`
+                              }
+                              style={{
+                                cursor: "pointer",
+                                outline: active
+                                  ? "2px solid #7367f0"
+                                  : "2px solid transparent",
+                                borderRadius: "1.428rem",
+                                lineHeight: 0,
+                              }}
+                            >
+                              <Chip
+                                className="m-0 text-center"
+                                color={chipColors[code] || "primary"}
+                                text={code}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className="d-flex align-items-center"
+                        style={{ gap: "0.5rem", flexWrap: "wrap" }}
+                      >
+                        {[
+                          {
+                            key: "cf7",
+                            label: "CF7",
+                            bg: "#eef2ff",
+                            fg: "#4f46e5",
+                          },
+                          {
+                            key: "chatbot",
+                            label: "Chatbot",
+                            bg: "#e8f4fd",
+                            fg: "#1e88e5",
+                          },
+                          {
+                            key: "diagnostic",
+                            label: "Diagnostic",
+                            bg: "#fff3e0",
+                            fg: "#ef6c00",
+                          },
+                        ].map((p) => {
+                          const active = this.state.sourceFilter === p.key;
+                          return (
+                            <Badge
+                              key={p.key}
+                              pill
+                              className="cursor-pointer"
+                              onClick={() => this.setSourceFilter(p.key)}
+                              style={{
+                                fontSize: "0.8rem",
+                                fontWeight: 600,
+                                padding: "0.4rem 0.85rem",
+                                backgroundColor: active ? p.fg : p.bg,
+                                color: active ? "#fff" : p.fg,
+                                border: `1px solid ${p.fg}`,
+                                cursor: "pointer",
+                              }}
+                              title={
+                                active
+                                  ? "Cliquer pour retirer le filtre"
+                                  : `Filtrer source ${p.label}`
+                              }
+                            >
+                              {p.label}
+                            </Badge>
+                          );
+                        })}
+                        {/* Inscrit: visible DISABLED until real source flag — ANCIEN grey; not in sourceFilter */}
+                        <Badge
+                          pill
+                          style={{
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            padding: "0.4rem 0.85rem",
+                            backgroundColor: "#e9ecef",
+                            color: "#6c757d",
+                            border: "1px solid #6c757d",
+                            cursor: "not-allowed",
+                            opacity: 0.7,
+                          }}
+                          title="Inscrit — bientôt (filtre désactivé)"
+                        >
+                          Inscrit
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
 

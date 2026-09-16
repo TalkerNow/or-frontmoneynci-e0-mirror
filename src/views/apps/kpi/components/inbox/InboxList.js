@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader, MessageSquare, EyeOff, Search } from "lucide-react";
+import { Loader, MessageSquare, Search, X, UserPlus, Mail, MailOpen } from "lucide-react";
 import {
   getTypeIcon,
   formatPhoneNumber,
@@ -14,9 +14,17 @@ const InboxList = ({
   readIds,
   manualUnreadIds,
   onMarkAsUnread,
+  onDisqualify,
+  onConvert,
+  filter = "all",
 }) => {
   const [hoveredItemId, setHoveredItemId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const isItemUnread = (item) =>
+    (item.status === "new" ||
+      manualUnreadIds.has(`${item.type}-${item.id}`)) &&
+    !readIds.has(`${item.type}-${item.id}`);
 
   // Logique de filtrage
   const filteredItems = visibleInboxItems.filter((item) => {
@@ -27,12 +35,16 @@ const InboxList = ({
     const phone = item.phone ? item.phone.toString() : "";
     const summary =
       item.summary && item.summary[0] ? item.summary[0].toLowerCase() : "";
+    const subject = item.subject ? item.subject.toLowerCase() : "";
+    const snippet = item.snippet ? item.snippet.toLowerCase() : "";
 
     return (
       name.includes(lowerTerm) ||
       email.includes(lowerTerm) ||
       phone.includes(lowerTerm) ||
-      summary.includes(lowerTerm)
+      summary.includes(lowerTerm) ||
+      subject.includes(lowerTerm) ||
+      snippet.includes(lowerTerm)
     );
   });
 
@@ -45,7 +57,7 @@ const InboxList = ({
           <input
             type="text"
             className="inbox-search-input"
-            placeholder="Rechercher nom, email, tél..."
+            placeholder="Rechercher expéditeur, sujet, extrait..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -65,7 +77,9 @@ const InboxList = ({
         <h3 style={{ fontWeight: 600, color: "#374151", margin: 0 }}>
           {searchTerm
             ? `Résultats (${filteredItems.length})`
-            : `Non lus (${unreadCount})`}
+            : filter === "email"
+              ? `Mails (${filteredItems.length}) · ${unreadCount} non lus`
+              : `Non lus (${unreadCount})`}
         </h3>
       </div>
       <div style={{ overflowY: "auto", flex: 1 }}>
@@ -131,7 +145,7 @@ const InboxList = ({
                     marginBottom: "8px",
                   }}
                 >
-                  Aucune conversation
+                  Aucun mail
                 </p>
                 <p
                   style={{
@@ -140,7 +154,7 @@ const InboxList = ({
                     maxWidth: "250px",
                   }}
                 >
-                  Les conversations avec vos clients apparaîtront ici
+                  Les mails entrants (formulaires / chatbot) apparaîtront ici
                   automatiquement.
                 </p>
               </>
@@ -159,15 +173,23 @@ const InboxList = ({
                 cursor: "pointer",
                 backgroundColor:
                   selectedItem.id === item.id ? "#eef2ff" : "transparent",
-                borderLeft: `4px solid ${
-                  item.type === "diagnostic"
-                    ? "#f97316"
-                    : item.type === "call"
-                    ? "#22c55e"
-                    : item.type === "email"
-                    ? "#6366f1"
-                    : "#3b82f6"
-                }`,
+                // Email + Chatbot: purple bar ONLY when unread.
+                // Read / selected = transparent bar (selection = background only).
+                // Diagnostic / call keep type colors.
+                borderLeft:
+                  item.type === "email" ||
+                  item.type === "chatbot" ||
+                  item.type === "conversations-archives"
+                    ? isItemUnread(item)
+                      ? "4px solid #6366f1"
+                      : "4px solid transparent"
+                    : `4px solid ${
+                        item.type === "diagnostic"
+                          ? "#f97316"
+                          : item.type === "call"
+                          ? "#22c55e"
+                          : "#3b82f6"
+                      }`,
                 transition: "background-color 0.2s",
                 position: "relative",
               }}
@@ -181,19 +203,16 @@ const InboxList = ({
               >
                 <span
                   style={{
-                    fontWeight: 500,
-                    color:
-                      (item.status === "new" ||
-                        manualUnreadIds.has(`${item.type}-${item.id}`)) &&
-                      !readIds.has(`${item.type}-${item.id}`)
-                        ? "#111827"
-                        : "#4b5563",
+                    fontWeight: isItemUnread(item) ? 700 : 500,
+                    color: isItemUnread(item) ? "#111827" : "#4b5563",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {formatPhoneNumber(item.name) || item.name}
+                  {item.type === "email"
+                    ? item.name
+                    : formatPhoneNumber(item.name) || item.name}
                   {item.hasMultipleChannels && (
                     <span title="Multi-Canal" style={{ marginLeft: "6px" }}>
                       <span role="img" aria-label="fire">
@@ -231,7 +250,11 @@ const InboxList = ({
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {item.summary[0]}
+                  {item.type === "email"
+                    ? [item.subject, item.snippet].filter(Boolean).join(" · ") ||
+                      (item.summary && item.summary[0]) ||
+                      ""
+                    : item.summary && item.summary[0]}
                 </span>
               </div>
               <div
@@ -242,8 +265,7 @@ const InboxList = ({
                   height: "24px", // Fixed height to prevent layout jump
                 }}
               >
-                {(item.status === "new" || manualUnreadIds.has(`${item.type}-${item.id}`)) &&
-                !readIds.has(`${item.type}-${item.id}`) ? (
+                {isItemUnread(item) ? (
                   <span
                     style={{
                       display: "inline-block",
@@ -254,35 +276,86 @@ const InboxList = ({
                     }}
                   ></span>
                 ) : hoveredItemId === item.id ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onMarkAsUnread) onMarkAsUnread(e, item);
-                    }}
-                    title="Marquer comme non lu"
+                  <div
                     style={{
-                      background: "#f3f4f6",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      color: "#4b5563",
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
-                      fontSize: "12px",
-                      transition: "all 0.2s",
                     }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "#e5e7eb")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "#f3f4f6")
-                    }
                   >
-                    <EyeOff size={14} />
-                    <span>Non lu</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onMarkAsUnread) onMarkAsUnread(e, item);
+                      }}
+                      title="Marquer comme non lu"
+                      aria-label="Marquer comme non lu"
+                      style={{
+                        background: "#f3f4f6",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        color: "#4b5563",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <MailOpen size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDisqualify) onDisqualify(e, item);
+                      }}
+                      title="Disqualifier"
+                      aria-label="Disqualifier"
+                      style={{
+                        background: "#fef2f2",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        color: "#dc2626",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <X size={14} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onConvert) onConvert(e, item);
+                      }}
+                      title="Convertir"
+                      aria-label="Convertir"
+                      style={{
+                        background: "#d1fae5",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        color: "#059669",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <UserPlus size={14} />
+                    </button>
+                  </div>
                 ) : null}
               </div>
             </div>

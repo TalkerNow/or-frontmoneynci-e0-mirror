@@ -59,6 +59,8 @@ class UserAccountTab extends React.Component {
     office_number: this.props.data.office_number,
     martial_status: this.props.data.martial_status,
     children_number: this.props.data.children_number,
+    statut_pro: this.props.data.statut_pro,
+    nombre_enfants_handicapes: this.props.data.nombre_enfants_handicapes,
     secu_social: this.props.data.secu_social,
     secu_social_key: this.props.data.secu_social_key,
     military_service: this.props.data.military_service,
@@ -293,6 +295,8 @@ class UserAccountTab extends React.Component {
                       ? this.props.data.martial_status
                       : null,
               children_number: information.children_number,
+              statut_pro: information.statut_pro,
+              nombre_enfants_handicapes: information.nombre_enfants_handicapes,
               secu_social: information.secu_social,
               secu_social_key: information.secu_social_key,
               mobile_number: information.contact_number,
@@ -976,6 +980,48 @@ class UserAccountTab extends React.Component {
                       this.markDirty();
                     }}
                   />
+                </FormGroup>
+              </Col>
+              {/* Nombre d'enfants en situation de handicap (optionnel) — majoration +8 trim/enfant */}
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="child_handi_nbr">
+                    Dont enfants en situation de handicap{" "}
+                    <small className="text-muted">(optionnel)</small>
+                  </Label>
+                  <Input
+                    type="number"
+                    id="child_handi_nbr"
+                    placeholder="0"
+                    min="0"
+                    defaultValue={this.ifExist("nombre_enfants_handicapes")}
+                    onChange={(e) => {
+                      this.setState({ nombre_enfants_handicapes: e.target.value });
+                      this.markDirty();
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              {/* Statut professionnel (optionnel) — impacte la majoration de trimestres enfants */}
+              <Col md="6" sm="12">
+                <FormGroup>
+                  <Label for="statut_pro">
+                    Statut professionnel{" "}
+                    <small className="text-muted">(optionnel)</small>
+                  </Label>
+                  <Input
+                    type="select"
+                    id="statut_pro"
+                    defaultValue={this.ifExist("statut_pro") || ""}
+                    onChange={(e) => {
+                      this.setState({ statut_pro: e.target.value });
+                      this.markDirty();
+                    }}
+                  >
+                    <option value="">Non renseigné (privé par défaut)</option>
+                    <option value="prive">Salarié / privé</option>
+                    <option value="fonctionnaire">Fonctionnaire</option>
+                  </Input>
                 </FormGroup>
               </Col>
             </Row>

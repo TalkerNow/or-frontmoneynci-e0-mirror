@@ -4,6 +4,7 @@ import {
   User,
   Phone,
   Mail,
+  MailOpen,
   ArrowRight,
   XCircle,
   ClipboardList,
@@ -14,11 +15,12 @@ import {
   TrendingUp,
   Star,
   Loader,
-  // Eye,
-  EyeOff,
   Trash2,
   MessageSquare,
   FileText,
+  X,
+  UserPlus,
+  Reply,
 } from "lucide-react";
 
 import { Badge } from "../SharedComponents";
@@ -32,6 +34,8 @@ import {
   formatPhoneNumber,
   calculateComplexityScore,
   generateVisualReport,
+  buildCf7ReplyHref,
+  buildGmailOpenHref,
 } from "./utils";
 
 const InboxDetail = ({
@@ -51,8 +55,13 @@ const InboxDetail = ({
 }) => {
   const [showConversationModal, setShowConversationModal] = useState(false);
   const [showVisualReport, setShowVisualReport] = useState(false);
+  const [actionsView, setActionsView] = useState("HOME");
   const [reportData, setReportData] = useState(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
+
+  useEffect(() => {
+    setActionsView("HOME");
+  }, [selectedItem?.id, selectedItem?.type]);
 
   useEffect(() => {
     if (!showVisualReport) {
@@ -190,107 +199,186 @@ const InboxDetail = ({
                 </span>
               )}
               <span style={{ fontSize: "12px", color: "#9ca3af" }}>
-                Reçu le {selectedItem.date} • Source:{" "}
-                {selectedItem.raw?.source === "expert-retraite"
-                  ? "Expert Retraite"
-                  : "EOR Consultant"}
+                {selectedItem.type === "email" ? (
+                  <>Reçu le {selectedItem.date}</>
+                ) : (
+                  <>
+                    Reçu le {selectedItem.date} • Source:{" "}
+                    {selectedItem.raw?.source === "expert-retraite"
+                      ? "Expert Retraite"
+                      : "EOR Consultant"}
+                  </>
+                )}
               </span>
             </div>
             <div
               className="header-btn-stack"
-              style={{ display: "flex", gap: "8px" }}
+              style={{
+                display: "flex",
+                gap: "6px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
             >
-              <button
-                onClick={onMarkAsUnread}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#4b5563",
-                  backgroundColor: "#f3f4f6",
+              {(() => {
+                const iconBtn = (extra = {}) => ({
+                  padding: "8px",
+                  width: "36px",
+                  height: "36px",
+                  color: extra.color || "#4b5563",
+                  backgroundColor: extra.bg || "#f3f4f6",
                   borderRadius: "8px",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  gap: "8px",
+                  justifyContent: "center",
                   border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                title="Marquer comme non lu"
-              >
-                <EyeOff size={16} /> Marquer comme non lu
-              </button>
-              <button
-                onClick={onDisqualify}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  color: "#dc2626",
-                  backgroundColor: "#fef2f2",
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <XCircle size={16} /> Disqualifier
-              </button>
-              {selectedItem.type === "diagnostic" && (
-                <button
-                  onClick={() => setShowVisualReport(true)}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "#1e3a8a", // Dark blue text
-                    backgroundColor: "#eff6ff", // Very light blue background
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = "#dbeafe";
-                    e.currentTarget.style.color = "#172554";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = "#eff6ff";
-                    e.currentTarget.style.color = "#1e3a8a";
-                  }}
-                  title="Générer le rapport visuel"
-                >
-                  <FileText size={16} strokeWidth={2} />
-                  <span className="hide-on-mobile">Rapport Visuel</span>
-                </button>
-              )}
-              <button
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "14px",
-                  color: "white",
-                  backgroundColor: "#4f46e5",
-                  borderRadius: "8px",
-                  boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  cursor: "pointer",
-                  border: "none",
-                }}
-                onClick={onConvert}
-              >
-                <ArrowRight size={16} /> Convertir
-              </button>
+                  cursor: extra.disabled ? "not-allowed" : "pointer",
+                  opacity: extra.disabled ? 0.45 : 1,
+                  transition: "all 0.15s ease",
+                  textDecoration: "none",
+                  lineHeight: 1,
+                });
+                const isUnread = selectedItem.status === "new";
+                const readTitle = isUnread
+                  ? "Marquer comme lu"
+                  : "Marquer comme non lu";
+                const reply =
+                  selectedItem.type === "email"
+                    ? buildCf7ReplyHref(selectedItem)
+                    : null;
+                return (
+                  <>
+                    {/* 1 enveloppe lu/non-lu · 2 ✕ · 3 reply · 4 tél · 5 tâche · 6 convert */}
+                    <button
+                      type="button"
+                      onClick={onMarkAsUnread}
+                      style={iconBtn(
+                        isUnread
+                          ? { color: "#4f46e5", bg: "#eef2ff" }
+                          : {},
+                      )}
+                      title={readTitle}
+                      aria-label={readTitle}
+                    >
+                      {isUnread ? <Mail size={16} /> : <MailOpen size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onDisqualify}
+                      style={iconBtn({ color: "#dc2626", bg: "#fef2f2" })}
+                      title="Disqualifier"
+                      aria-label="Disqualifier"
+                    >
+                      <X size={16} strokeWidth={2.5} />
+                    </button>
+                    {selectedItem.type === "email" ? (
+                      reply && reply.href && !reply.disabled ? (
+                        <a
+                          href={reply.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={iconBtn({ color: "#4f46e5", bg: "#eef2ff" })}
+                          title="Répondre"
+                          aria-label="Répondre"
+                        >
+                          <Reply size={16} />
+                        </a>
+                      ) : (
+                        <span
+                          style={iconBtn({ disabled: true })}
+                          title="Répondre"
+                          aria-label="Répondre (indisponible)"
+                        >
+                          <Reply size={16} />
+                        </span>
+                      )
+                    ) : null}
+                    {selectedItem.type === "email" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActionsView((v) =>
+                            v === "CALLREPORT" ? "HOME" : "CALLREPORT",
+                          )
+                        }
+                        style={iconBtn(
+                          actionsView === "CALLREPORT"
+                            ? { color: "#4f46e5", bg: "#e0e7ff" }
+                            : {},
+                        )}
+                        title="Appeler"
+                        aria-label="Appeler"
+                      >
+                        <Phone size={16} />
+                      </button>
+                    ) : null}
+                    {selectedItem.type === "email" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActionsView((v) =>
+                            v === "TASK" ? "HOME" : "TASK",
+                          )
+                        }
+                        style={iconBtn(
+                          actionsView === "TASK"
+                            ? { color: "#4f46e5", bg: "#e0e7ff" }
+                            : {},
+                        )}
+                        title="Créer une tâche"
+                        aria-label="Créer une tâche"
+                      >
+                        <CheckCircle size={16} />
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={onConvert}
+                      style={iconBtn({ color: "#059669", bg: "#d1fae5" })}
+                      title="Convertir"
+                      aria-label="Convertir"
+                    >
+                      <UserPlus size={16} />
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
-          {/* Header Prospect - 3 champs horizontaux */}
+          {/* Mail header → legacy ActionsSection forms (CALLREPORT bandeau / TASK form) */}
+          {selectedItem.type === "email" &&
+            (actionsView === "CALLREPORT" || actionsView === "TASK" || actionsView === "HISTORY") && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  marginBottom: "8px",
+                  padding: "16px",
+                  backgroundColor: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "12px",
+                }}
+              >
+                <ActionsSection
+                  clientId={selectedItem.clientId}
+                  prospectId={selectedItem.id}
+                  adminId={localStorage.getItem("userid")}
+                  type={selectedItem.type}
+                  prospectData={{
+                    firstName: selectedItem.firstName,
+                    lastName: selectedItem.lastName,
+                    email: selectedItem.email,
+                    phone: selectedItem.phone,
+                  }}
+                  onProspectCreated={onProspectCreated}
+                  hideNav
+                  controlledView={actionsView}
+                  onViewChange={setActionsView}
+                />
+              </div>
+            )}
+
+          {selectedItem.type !== "email" && (
           <div
             className="inbox-header-fields"
             style={{
@@ -395,6 +483,7 @@ const InboxDetail = ({
               </div>
             </div>
           </div>
+          )}
         </div>
 
         <div
@@ -1050,6 +1139,151 @@ const InboxDetail = ({
                 )}
               </div>
             </div>
+          ) : selectedItem.type === "email" ? (
+            <div style={{ paddingTop: "8px" }}>
+              {/* CF7 reading pane — Gmail mirror, label then value */}
+              {selectedItem.channel ? (
+                <div
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#111827",
+                    marginBottom: "20px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {selectedItem.channel}
+                </div>
+              ) : null}
+
+              {[
+                { label: "Nom, prénom", value: selectedItem.name },
+                {
+                  label: "Téléphone",
+                  value: formatPhoneNumber(selectedItem.phone) || selectedItem.phone,
+                },
+                { label: "Adresse mail", value: selectedItem.email },
+                { label: "Date de naissance", value: selectedItem.birthDate },
+                {
+                  label: "Vous êtes intéressé·e par",
+                  value: selectedItem.interest,
+                },
+                {
+                  label: "Message",
+                  value: selectedItem.cf7Message,
+                },
+              ]
+                .filter((row) => row.value && String(row.value).trim())
+                .map((row) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      marginBottom: "16px",
+                      paddingBottom: "14px",
+                      borderBottom: "1px solid #f3f4f6",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#6b7280",
+                        marginBottom: "4px",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {row.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 500,
+                        color: "#111827",
+                        lineHeight: 1.55,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {row.value}
+                    </div>
+                  </div>
+                ))}
+
+              {selectedItem.formUrl ? (
+                <div
+                  style={{
+                    marginBottom: "16px",
+                    paddingBottom: "14px",
+                    borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#6b7280",
+                      marginBottom: "4px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Formulaire rempli sur le site EOR
+                  </div>
+                  <a
+                    href={selectedItem.formUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: "14px",
+                      color: "#4f46e5",
+                      wordBreak: "break-all",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {selectedItem.formUrl}
+                  </a>
+                </div>
+              ) : null}
+
+              {/* Fallback if CF7 parse empty: quiet body, no subject noise */}
+              {!selectedItem.channel &&
+              !selectedItem.name &&
+              !selectedItem.phone &&
+              !selectedItem.email &&
+              !selectedItem.cf7Message ? (
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "#374151",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {selectedItem.body || selectedItem.snippet || ""}
+                </div>
+              ) : null}
+
+              {(() => {
+                const gmailHref = buildGmailOpenHref(selectedItem);
+                if (!gmailHref) return null;
+                return (
+                  <div style={{ marginTop: "8px", paddingTop: "8px" }}>
+                    <a
+                      href={gmailHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-block",
+                        fontSize: "13px",
+                        color: "#4f46e5",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Ouvrir dans Gmail →
+                    </a>
+                  </div>
+                );
+              })()}
+            </div>
           ) : (
             <div>
               <h3
@@ -1063,7 +1297,7 @@ const InboxDetail = ({
                 }}
               >
                 <MessageSquare size={16} className="mr-50" />
-                {selectedItem.type === "call" || selectedItem.type === "email"
+                {selectedItem.type === "call"
                   ? "DÉTAILS DE L'ÉCHANGE"
                   : "SYNTHÈSE DE LA CONVERSATION"}
               </h3>
@@ -1096,9 +1330,7 @@ const InboxDetail = ({
                     >
                       {selectedItem.type === "call"
                         ? "📞 Détails de l'appel"
-                        : selectedItem.type === "email"
-                          ? "✉️ Détails du mail"
-                          : "📝 Synthèse IA"}
+                        : "📝 Synthèse IA"}
                     </div>
                     <div
                       style={{
@@ -1108,30 +1340,30 @@ const InboxDetail = ({
                       }}
                     >
                       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                        {selectedItem.summary?.map((point, idx) => (
-                          <li
-                            key={idx}
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: "8px",
-                              marginBottom: "8px",
-                            }}
-                          >
-                            <span
+                          {selectedItem.summary?.map((point, idx) => (
+                            <li
+                              key={idx}
                               style={{
-                                marginTop: "6px",
-                                width: "6px",
-                                height: "6px",
-                                backgroundColor: "#60a5fa",
-                                borderRadius: "50%",
-                                flexShrink: 0,
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "8px",
+                                marginBottom: "8px",
                               }}
-                            ></span>
-                            <span>{point}</span>
-                          </li>
-                        ))}
-                      </ul>
+                            >
+                              <span
+                                style={{
+                                  marginTop: "6px",
+                                  width: "6px",
+                                  height: "6px",
+                                  backgroundColor: "#60a5fa",
+                                  borderRadius: "50%",
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
                     </div>
                   </div>
                 </div>
@@ -1339,7 +1571,11 @@ const InboxDetail = ({
               </div>
             )}
 
-          {/* Actions Section */}
+          {/* Actions Section — skip duplicate while mail header bandeau owns TASK/CALLREPORT */}
+          {!(
+            selectedItem.type === "email" &&
+            (actionsView === "CALLREPORT" || actionsView === "TASK" || actionsView === "HISTORY")
+          ) && (
           <div
             style={{
               marginTop: "0",
@@ -1369,8 +1605,16 @@ const InboxDetail = ({
                 phone: selectedItem.phone,
               }}
               onProspectCreated={onProspectCreated}
+              hideNav={selectedItem.type === "email"}
+              controlledView={
+                selectedItem.type === "email" ? actionsView : undefined
+              }
+              onViewChange={
+                selectedItem.type === "email" ? setActionsView : undefined
+              }
             />
           </div>
+          )}
         </div>
       </div>
     </>

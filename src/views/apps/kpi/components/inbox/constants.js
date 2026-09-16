@@ -1,4 +1,5 @@
 export const DISQUALIFICATION_REASONS = [
+    { value: "mail_non_pertinent", label: "mail non pertinent" },
     { value: "faux_numero", label: "Faux Numéro / Injoignable" },
     { value: "pas_budget", label: "Pas de budget / Trop cher" },
     { value: "hors_cible", label: "Hors Cible (Trop jeune / Déjà retraité)" },

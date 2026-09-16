@@ -111,10 +111,27 @@ function checkValidServiceWorker(swUrl, config) {
     })
 }
 
+/**
+ * Permanently disable SW: unregister all registrations + drop Cache Storage.
+ * CRA may still have shipped a precache SW from older builds; hard refresh alone
+ * does not always clear it — this runs on every boot via index.js.
+ */
 export function unregister() {
   if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => {
+        registration.unregister()
+      })
+    }).catch(() => {})
     navigator.serviceWorker.ready.then(registration => {
       registration.unregister()
-    })
+    }).catch(() => {})
+  }
+  if (typeof caches !== 'undefined' && caches.keys) {
+    caches.keys().then(keys => {
+      keys.forEach(key => {
+        caches.delete(key)
+      })
+    }).catch(() => {})
   }
 }

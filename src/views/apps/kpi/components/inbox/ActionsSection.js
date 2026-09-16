@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useHistory } from "react-router-dom";
 import {
-  MessageSquare,
   CheckCircle,
   Phone,
-  Briefcase,
   User,
   Plus,
-  Calendar,
 } from "lucide-react";
 import SweetAlert from "react-bootstrap-sweetalert";
 
@@ -17,6 +13,17 @@ import ProspectCreateModal from "./ProspectCreateModal";
 import CreateUserKanbanModal from "../kanban/Modals/CreateUserKanbanModal";
 import ActivityList from "./ActivityList";
 
+const todayYmd = () => new Date().toISOString().split("T")[0];
+
+const normalizeTask = (t) => ({
+  ...t,
+  text: t.text || t.title || t.desc || getTaskText(t) || "",
+  type: "TASK",
+  customer_id: t.customer_id ?? t.user_id,
+  end_date: t.end_date || t.date || null,
+  created_at: t.created_at || t.date || null,
+});
+
 const ActionsSection = ({
   clientId,
   adminId,
@@ -24,12 +31,25 @@ const ActionsSection = ({
   type,
   prospectData = {},
   onProspectCreated, // Nouveau callback pour notifier le parent
+  hideNav = false,
+  controlledView,
+  onViewChange,
 }) => {
-  const routerHistory = useHistory();
-  const [activeView, setActiveView] = useState("HOME");
+  const [internalView, setInternalView] = useState("HOME");
+  const activeView =
+    controlledView !== undefined ? controlledView : internalView;
+  const setActiveView = (v) => {
+    const next = typeof v === "function" ? v(activeView) : v;
+    if (onViewChange) onViewChange(next);
+    if (controlledView === undefined) setInternalView(next);
+  };
   const [newCallReport, setNewCallReport] = useState("");
   const [newTaskText, setNewTaskText] = useState("");
   const [taskDateTime, setTaskDateTime] = useState("");
+  const [showCallEcheance, setShowCallEcheance] = useState(false);
+  const [callEcheanceDate, setCallEcheanceDate] = useState("");
+  const [callsExpanded, setCallsExpanded] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState("ALL");
 
   // Create Prospect Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -42,12 +62,19 @@ const ActionsSection = ({
 
   useEffect(() => {
     setLocalClientId(null);
-    setActiveView("HOME");
+    // Parent owns view when controlled (mail header icons); do not clobber TASK/CALLREPORT.
+    if (controlledView === undefined) {
+      setInternalView("HOME");
+    }
     setNewCallReport("");
     setNewTaskText("");
     setTaskDateTime("");
+    setShowCallEcheance(false);
+    setCallEcheanceDate("");
+    setCallsExpanded(false);
     setShowCreateModal(false);
     setShowKanbanModal(false);
+    setHistoryFilter("ALL");
   }, [clientId, prospectId, type]);
 
   // Effective Client ID (prop or locally created)
@@ -109,7 +136,7 @@ const ActionsSection = ({
     fetchCallReports();
   }, [ownerId]);
 
-  // Fetch Tasks
+  // Fetch Tasks — menu model (/tasks via customer_tasks), NOT inbox-tasks
   useEffect(() => {
     const fetchTasks = async () => {
       if (!ownerId) {
@@ -121,21 +148,38 @@ const ActionsSection = ({
         const Config = {
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
-        const response = await axios.get(
-          global.config.server_url + `/v1/inbox-tasks`,
-          Config,
-        );
-
-        const tasksData = Array.isArray(response.data)
-          ? response.data
-          : response.data.data || [];
+        // Prefer customer-scoped endpoint; fallback to /tasks?filter=all + client filter
+        let tasksData = [];
+        try {
+          const response = await axios.get(
+            global.config.server_url +
+              `/customer_tasks?filter=all&user_id=${ownerId}`,
+            Config,
+          );
+          tasksData = Array.isArray(response.data)
+            ? response.data
+            : response.data.data || [];
+        } catch (e) {
+          const response = await axios.get(
+            global.config.server_url + `/tasks?filter=all`,
+            Config,
+          );
+          const all = Array.isArray(response.data)
+            ? response.data
+            : response.data.data || [];
+          tasksData = all.filter(
+            (t) => String(t.customer_id) === String(ownerId),
+          );
+        }
 
         setTasks(
-          tasksData.sort(
-            (a, b) =>
-              new Date(b.created_at || b.date) -
-              new Date(a.created_at || a.date),
-          ),
+          tasksData
+            .map(normalizeTask)
+            .sort(
+              (a, b) =>
+                new Date(b.created_at || b.date || 0) -
+                new Date(a.created_at || a.date || 0),
+            ),
         );
       } catch (error) {
         console.error("Failed to fetch tasks", error);
@@ -146,6 +190,14 @@ const ActionsSection = ({
 
     fetchTasks();
   }, [ownerId]);
+
+  const refreshTasksBadge = () => {
+    try {
+      window.dispatchEvent(new CustomEvent("eor-tasks-badge-refresh"));
+    } catch (e) {
+      /* ignore */
+    }
+  };
 
   // ===== HANDLERS =====
   const handleAddCallReport = async () => {
@@ -180,11 +232,58 @@ const ActionsSection = ({
         ...serverData,
         id: serverData.id,
         type: "CALLREPORT",
+        created_at: serverData.created_at || new Date().toISOString(),
       };
       setCallReports((prev) => [savedReport, ...prev]);
 
+      // Cap'tain 2026-09-15: optional echeance → create reminder task (end_date)
+      if (callEcheanceDate) {
+        try {
+          const endDate = callEcheanceDate.split("T")[0];
+          const taskPayload = {
+            title: `Rappel appel: ${newCallReport.trim().slice(0, 80)}`,
+            desc: `Rappel suite appel — ${newCallReport.trim()}`,
+            isCompleted: false,
+            isImportant: false,
+            isRead: false,
+            type: "other",
+            end_date: endDate,
+            customer_id: ownerId,
+            creator_id: adminId || localStorage.getItem("userid"),
+          };
+          const taskResp = await axios.post(
+            global.config.server_url + "/tasks",
+            taskPayload,
+            Config,
+          );
+          let taskData = taskResp.data.data || taskResp.data;
+          if (typeof taskData === "string") {
+            try { taskData = JSON.parse(taskData); } catch (e) { /* ignore */ }
+          }
+          const savedTask = normalizeTask({
+            ...(typeof taskData === "object" ? taskData : {}),
+            id: taskData && taskData.id,
+            title: taskPayload.title,
+            desc: taskPayload.desc,
+            text: taskPayload.title,
+            customer_id: ownerId,
+            end_date: endDate,
+            created_at:
+              (typeof taskData === "object" && taskData && taskData.created_at) ||
+              new Date().toISOString(),
+            isCompleted: false,
+          });
+          setTasks((prev) => [savedTask, ...prev]);
+          refreshTasksBadge();
+        } catch (taskErr) {
+          console.error("Failed to add call echeance reminder", taskErr);
+        }
+      }
+
       setNewCallReport("");
-      setActiveView("HOME");
+      setCallEcheanceDate("");
+      setShowCallEcheance(false);
+      // Cap'tain: stay on form + refresh list of 5 (do NOT close bandeau)
     } catch (error) {
       console.error("Failed to add call report", error);
       window.alert("Erreur lors de la sauvegarde du rapport.");
@@ -206,17 +305,25 @@ const ActionsSection = ({
         headers: { Authorization: "Bearer " + localStorage.getItem("token") },
       };
 
+      // Cap'tain: user date = échéance (end_date); created_at auto server/now. Empty → today
+      const endDate = taskDateTime
+        ? taskDateTime.split("T")[0]
+        : todayYmd();
+
       const payload = {
-        user_id: ownerId,
-        admin_id: adminId || localStorage.getItem("userid"),
-        data: JSON.stringify({ text: newTaskText.trim() }),
-        date: taskDateTime
-          ? taskDateTime.split("T")[0]
-          : new Date().toISOString().split("T")[0],
+        title: newTaskText.trim(),
+        desc: newTaskText.trim(),
+        isCompleted: false,
+        isImportant: false,
+        isRead: false,
+        type: "other",
+        end_date: endDate,
+        customer_id: ownerId,
+        creator_id: adminId || localStorage.getItem("userid"),
       };
 
       const response = await axios.post(
-        global.config.server_url + "/v1/inbox-tasks",
+        global.config.server_url + "/tasks",
         payload,
         Config,
       );
@@ -230,24 +337,35 @@ const ActionsSection = ({
         }
       }
 
-      const savedTask = {
+      const savedTask = normalizeTask({
         ...(typeof serverData === "object" ? serverData : {}),
         id: serverData?.id,
+        title: newTaskText.trim(),
+        desc: newTaskText.trim(),
         text: newTaskText.trim(),
-        user_id: ownerId,
-        type: "TASK",
-        created_at: new Date().toISOString(),
-      };
+        customer_id: ownerId,
+        end_date: endDate,
+        created_at:
+          (typeof serverData === "object" && serverData?.created_at) ||
+          new Date().toISOString(),
+        isCompleted: false,
+      });
 
       setTasks((prev) => [savedTask, ...prev]);
 
       setNewTaskText("");
       setTaskDateTime("");
-      setActiveView("HOME");
+      // Cap'tain: stay on form; refresh badge so menu Tâches increments
+      refreshTasksBadge();
     } catch (error) {
       console.error("Failed to add task", error);
       window.alert("Erreur lors de la sauvegarde de la tâche.");
     }
+  };
+
+  const openHistory = (filter) => {
+    setHistoryFilter(filter || "ALL");
+    setActiveView("HISTORY");
   };
 
   // ===== EDIT STATE =====
@@ -257,7 +375,7 @@ const ActionsSection = ({
   const handleEditItem = (item) => {
     setEditingItem(item);
     if (item.type === "TASK") {
-      setEditText(getTaskText(item));
+      setEditText(getTaskText(item) || item.title || item.desc || "");
     } else {
       setEditText(item.report || item.content || item.call_report || "");
     }
@@ -304,11 +422,12 @@ const ActionsSection = ({
           headers: { Authorization: "Bearer " + localStorage.getItem("token") },
         };
         const updatePayload = {
-          data: JSON.stringify({ text: editText.trim() }),
+          title: editText.trim(),
+          desc: editText.trim(),
         };
 
         await axios.put(
-          global.config.server_url + `/v1/inbox-tasks/${editingItem.id}`,
+          global.config.server_url + `/tasks/${editingItem.id}`,
           updatePayload,
           Config,
         );
@@ -318,7 +437,9 @@ const ActionsSection = ({
             t.id === editingItem.id
               ? {
                   ...t,
-                  data: JSON.stringify({ text: editText.trim() }),
+                  title: editText.trim(),
+                  desc: editText.trim(),
+                  text: editText.trim(),
                 }
               : t,
           ),
@@ -385,10 +506,11 @@ const ActionsSection = ({
           },
         };
         await axios.delete(
-          global.config.server_url + `/v1/inbox-tasks/${item.id}`,
+          global.config.server_url + `/tasks/${item.id}`,
           Config,
         );
         setTasks((prev) => prev.filter((t) => t.id !== item.id));
+        refreshTasksBadge();
       } catch (error) {
         console.error("Failed to delete task", error);
         window.alert("Erreur lors de la suppression de la tâche.");
@@ -398,12 +520,8 @@ const ActionsSection = ({
     setItemToDelete(null);
   };
 
-  // Render Logic
-  const visibleTasks = tasks.filter(
-    (t) =>
-      String(t.user_id) === String(ownerId) ||
-      String(t.ownerId) === String(ownerId),
-  );
+  // Render Logic — tasks already scoped to owner via customer_tasks / filter
+  const visibleTasks = tasks;
 
   const allItems = [
     ...callReports.map((r) => ({ ...r, type: "CALLREPORT" })),
@@ -413,6 +531,11 @@ const ActionsSection = ({
     (a, b) =>
       new Date(b.created_at || b.date) - new Date(a.created_at || a.date),
   );
+
+  const allCalls = callReports.map((r) => ({ ...r, type: "CALLREPORT" }));
+  const latestCalls = allCalls.slice(0, 5);
+  const displayedCalls = callsExpanded ? allCalls : latestCalls;
+  const latestTasks = visibleTasks.slice(0, 5);
 
   // Styles
   const iconButtonStyle = (isActive) => ({
@@ -543,70 +666,25 @@ const ActionsSection = ({
 
   return (
     <div>
-      {/* Icon Navigation Bar */}
-      <div className="header-flex-wrap" style={iconBarStyle}>
-        <button
-          style={iconButtonStyle(activeView === "HOME")}
-          onClick={() => setActiveView("HOME")}
-          title="Historique"
-        >
-          <MessageSquare size={20} />
-        </button>
-        <button
-          style={iconButtonStyle(activeView === "CALLREPORT")}
-          onClick={() => setActiveView("CALLREPORT")}
-          title="Call Report"
-        >
-          <Phone size={20} />
-        </button>
-        <button
-          style={iconButtonStyle(activeView === "TASK")}
-          onClick={() => setActiveView("TASK")}
-          title="Tâche"
-        >
-          <CheckCircle size={20} />
-        </button>
-
-        <button
-          style={iconButtonStyle(false)}
-          onClick={() =>
-            routerHistory.push({
-              pathname: "/kpi/opportunities",
-              state: { fromInbox: true, conversationId: prospectId },
-            })
-          }
-          title="Opportunités"
-        >
-          <Briefcase size={20} />
-        </button>
-
-        {ownerId && (
-          <>
-            <button
-              style={{
-                ...iconButtonStyle(false),
-                color: "#059669",
-                backgroundColor: "#d1fae5",
-              }}
-              onClick={() => routerHistory.push(`/app/user/edit/${ownerId}/2`)}
-              title="Voir le profil complet"
-            >
-              <User size={20} />
-            </button>
-            <button
-              style={{
-                ...iconButtonStyle(false),
-                color: "#7c3aed",
-                backgroundColor: "#ede9fe",
-              }}
-              onClick={() => setShowKanbanModal(true)}
-              title="Ajouter au Kanban"
-            >
-              <Calendar size={20} />
-            </button>
-          </>
-        )}
-      </div>
+      {/* Icon nav: chat/kanban/profil parked. hideNav => mail header owns icons. */}
+      {!hideNav && (
+        <div className="header-flex-wrap" style={iconBarStyle}>
+          <button
+            style={iconButtonStyle(activeView === "CALLREPORT")}
+            onClick={() => setActiveView("CALLREPORT")}
+            title="Téléphone"
+          >
+            <Phone size={20} />
+          </button>
+          <button
+            style={iconButtonStyle(activeView === "TASK")}
+            onClick={() => setActiveView("TASK")}
+            title="Tâche"
+          >
+            <CheckCircle size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Views */}
       <div style={viewContainerStyle}>
@@ -624,7 +702,53 @@ const ActionsSection = ({
           />
         )}
 
-        {/* CALLREPORT View - Form */}
+        {/* HISTORY — full typed history, bandeau stays open (ClientEdit keeps HISTORY) */}
+        {activeView === "HISTORY" && (
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "8px",
+              }}
+            >
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#374151",
+                }}
+              >
+                Historique
+              </h4>
+              <button
+                style={{ ...secondaryButtonStyle, padding: "6px 12px" }}
+                onClick={() =>
+                  setActiveView(
+                    historyFilter === "TASK" ? "TASK" : "CALLREPORT",
+                  )
+                }
+              >
+                Retour
+              </button>
+            </div>
+            <ActivityList
+              items={allItems}
+              initialFilter={historyFilter}
+              onEdit={handleEditItem}
+              onDelete={handleDeleteItem}
+              editingItem={editingItem}
+              saveEditHandler={handleSaveEdit}
+              cancelEditHandler={handleCancelEdit}
+              editText={editText}
+              setEditText={setEditText}
+            />
+          </div>
+        )}
+
+        {/* CALLREPORT View - Form + 5 latest */}
         {activeView === "CALLREPORT" && (
           <div>
             <h4
@@ -643,21 +767,103 @@ const ActionsSection = ({
               onChange={(e) => setNewCallReport(e.target.value)}
               style={textareaStyle}
             />
+            {showCallEcheance && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  marginBottom: "12px",
+                }}
+              >
+                <label
+                  htmlFor="or-call-echeance"
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    margin: 0,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Échéance
+                </label>
+                <input
+                  id="or-call-echeance"
+                  type="date"
+                  title="Échéance (rappel) — crée une tâche rappel à cette date"
+                  aria-label="Échéance"
+                  value={callEcheanceDate}
+                  onChange={(e) => setCallEcheanceDate(e.target.value)}
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  style={{ ...inputStyle, width: "180px", cursor: "pointer", marginBottom: 0 }}
+                />
+              </div>
+            )}
             <div style={{ display: "flex", gap: "10px" }}>
               <button style={buttonStyle} onClick={handleAddCallReport}>
                 Ajouter
               </button>
               <button
+                type="button"
                 style={secondaryButtonStyle}
-                onClick={() => setActiveView("HOME")}
+                onClick={() => setShowCallEcheance((v) => !v)}
+                aria-expanded={showCallEcheance}
               >
-                Voir historique
+                Ajouter une échéance
               </button>
+            </div>
+            <div style={{ marginTop: "16px" }}>
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                5 derniers appels
+              </p>
+              <ActivityList
+                items={displayedCalls}
+                initialFilter="CALLREPORT"
+                limit={callsExpanded ? undefined : 5}
+                hideFilters
+                compact
+                onEdit={handleEditItem}
+                onDelete={handleDeleteItem}
+                editingItem={editingItem}
+                saveEditHandler={handleSaveEdit}
+                cancelEditHandler={handleCancelEdit}
+                editText={editText}
+                setEditText={setEditText}
+              />
+              {allCalls.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => setCallsExpanded((v) => !v)}
+                  style={{
+                    marginTop: 8,
+                    padding: 0,
+                    border: "none",
+                    background: "none",
+                    color: "#4f46e5",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                  aria-expanded={callsExpanded}
+                >
+                  {callsExpanded ? "réduire" : "suite"}
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {/* TASK View - Form */}
+        {/* TASK View - Form + 5 latest */}
         {activeView === "TASK" && (
           <div>
             <h4
@@ -676,23 +882,76 @@ const ActionsSection = ({
               onChange={(e) => setNewTaskText(e.target.value)}
               style={textareaStyle}
             />
-            <input
-              type="date"
-              value={taskDateTime}
-              onChange={(e) => setTaskDateTime(e.target.value)}
-              onClick={(e) => e.target.showPicker && e.target.showPicker()}
-              style={{ ...inputStyle, width: "180px", cursor: "pointer" }}
-            />
+            {/* Cap'tain 2026-09-15: date field = échéance only; created_at auto-stamped on save */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "12px",
+              }}
+            >
+              <label
+                htmlFor="or-task-echeance"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#374151",
+                  margin: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Échéance
+              </label>
+              <input
+                id="or-task-echeance"
+                type="date"
+                title="Échéance (rappel) — la date de création est horodatée automatiquement"
+                aria-label="Échéance"
+                value={taskDateTime}
+                onChange={(e) => setTaskDateTime(e.target.value)}
+                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                style={{ ...inputStyle, width: "180px", cursor: "pointer", marginBottom: 0 }}
+              />
+            </div>
             <div style={{ display: "flex", gap: "10px" }}>
               <button style={buttonStyle} onClick={handleAddTask}>
                 Ajouter
               </button>
               <button
                 style={secondaryButtonStyle}
-                onClick={() => setActiveView("HOME")}
+                onClick={() => openHistory("TASK")}
               >
                 Voir historique
               </button>
+            </div>
+            <div style={{ marginTop: "16px" }}>
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                5 dernières tâches
+              </p>
+              <ActivityList
+                items={latestTasks}
+                initialFilter="TASK"
+                limit={5}
+                hideFilters
+                compact
+                onEdit={handleEditItem}
+                onDelete={handleDeleteItem}
+                editingItem={editingItem}
+                saveEditHandler={handleSaveEdit}
+                cancelEditHandler={handleCancelEdit}
+                editText={editText}
+                setEditText={setEditText}
+              />
             </div>
           </div>
         )}

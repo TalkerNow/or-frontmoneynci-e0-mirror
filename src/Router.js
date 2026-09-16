@@ -26,6 +26,7 @@ const prompts = lazy(() => import("./views/apps/prompts"));
 const baremeRetraite = lazy(() => import('./views/apps/bareme-retraite'))
 
 const consultantAccess = lazy(() => import("./views/apps/consultant-access/ConsultantAccessPage"))
+const adminMoteur = lazy(() => import("./views/apps/admin-moteur/AdminMoteurPage"))
 
 const clientslist = lazy(() => import("./views/apps/user/list/ClientsList"));
 const oldclientslist = lazy(
@@ -59,6 +60,9 @@ const resetPassword = lazy(
 );
 const register = lazy(
   () => import("./views/pages/authentication/register/Register"),
+);
+const espaceClient = lazy(
+  () => import("./views/pages/espace-client/EspaceClient"),
 );
 // const AdmUserList = lazy(() => import("./views/apps/user/list/usersList"))
 // const createService = lazy(() => import("./views/apps/Contract/Services/addService"))
@@ -191,6 +195,13 @@ class AppRouter extends React.Component {
             authorisation={["admin", "Admin"]}
           />
 
+          <ProtectedRoute
+            path="/app/admin-moteur"
+            component={adminMoteur}
+            isAuth={{ user }}
+            authorisation={["admin", "Admin"]}
+          />
+
           {/* <AppRoute path="/payment/paymentlist" component={payment} /> */}
 
           <ProtectedRoute
@@ -215,6 +226,24 @@ class AppRouter extends React.Component {
 
           <ProtectedRoute
             path="/app/user/clientslist"
+            component={clientslist}
+            isAuth={{ user }}
+            authorisation={employee_acess}
+          />
+          <ProtectedRoute
+            path="/app/user/inscritslist"
+            component={clientslist}
+            isAuth={{ user }}
+            authorisation={employee_acess}
+          />
+          <ProtectedRoute
+            path="/app/user/mesclientslist"
+            component={clientslist}
+            isAuth={{ user }}
+            authorisation={employee_acess}
+          />
+          <ProtectedRoute
+            path="/app/user/prospectslist"
             component={clientslist}
             isAuth={{ user }}
             authorisation={employee_acess}
@@ -320,6 +349,15 @@ class AppRouter extends React.Component {
           {/* <AppRoute path="/app/user/userlist" component={AdmUserList} /> */}
           {/* <AppRoute path="/app/contract/handleServices/:id" component={handleServices} /> */}
           {/* <AppRoute path="/app/user/createService" component={createService} /> */}
+
+          {/* MVP espace client public (auth Client) — no PDF livrables */}
+          <ProtectedRoute
+            path="/espace-client"
+            component={espaceClient}
+            isAuth={{ user }}
+            authorisation={[...basic_acess, "client"]}
+            fullLayout
+          />
 
           <AppRoute component={error404} fullLayout />
         </Switch>

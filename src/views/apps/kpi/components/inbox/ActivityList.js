@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     MessageSquare,
     Phone,
@@ -9,8 +9,69 @@ import {
 } from "lucide-react";
 import { getTaskText } from "./utils";
 
-const ActivityList = ({ items = [], onEdit, onDelete, editingItem, saveEditHandler, cancelEditHandler, editText, setEditText }) => {
-    const [historyFilter, setHistoryFilter] = useState("ALL"); // ALL, CALLREPORT, TASK
+const formatDateFr = (value) => {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+};
+
+const formatDateShort = (value) => {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    });
+};
+
+const getPreview = (item) => {
+    if (!item) return "Élément";
+    if (item.type === "TASK") {
+        return getTaskText(item) || item.title || item.desc || "Tâche";
+    }
+    return (
+        item.call_report ||
+        item.content ||
+        item.report ||
+        item.message ||
+        "Élément"
+    );
+};
+
+const getEcheance = (item) => {
+    // Cap'tain: Call Report has no due date → display —
+    if (!item || item.type === "CALLREPORT" || item.type === "LOG") return "—";
+    return formatDateShort(item.end_date || item.date);
+};
+
+const ActivityList = ({
+    items = [],
+    onEdit,
+    onDelete,
+    editingItem,
+    saveEditHandler,
+    cancelEditHandler,
+    editText,
+    setEditText,
+    initialFilter = "ALL",
+    limit,
+    hideFilters = false,
+    compact = false,
+}) => {
+    const [historyFilter, setHistoryFilter] = useState(initialFilter); // ALL, CALLREPORT, TASK
+
+    useEffect(() => {
+        setHistoryFilter(initialFilter || "ALL");
+    }, [initialFilter]);
 
     const filteredItems = items.filter((item) => {
         if (historyFilter === "ALL") return true;
@@ -19,16 +80,19 @@ const ActivityList = ({ items = [], onEdit, onDelete, editingItem, saveEditHandl
         return true;
     });
 
+    const displayItems =
+        typeof limit === "number" ? filteredItems.slice(0, limit) : filteredItems;
+
     const callReportCount = items.filter((i) => i.type === "CALLREPORT").length;
     const taskCount = items.filter((i) => i.type === "TASK").length;
-    const isEmpty = filteredItems.length === 0;
+    const isEmpty = displayItems.length === 0;
 
     // Styles
     const listItemStyle = {
         display: "flex",
         alignItems: "flex-start",
         gap: "12px",
-        padding: "12px 0",
+        padding: compact ? "8px 0" : "12px 0",
         borderBottom: "1px solid #f3f4f6",
     };
 
@@ -65,66 +129,77 @@ const ActivityList = ({ items = [], onEdit, onDelete, editingItem, saveEditHandl
         color: "#9ca3af",
     };
 
+    const metaStyle = {
+        margin: "4px 0 0",
+        fontSize: "12px",
+        color: "#9ca3af",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "8px",
+    };
+
     return (
         <div>
             {/* Filter Tabs */}
-            <div
-                style={{
-                    display: "flex",
-                    borderBottom: "1px solid #e5e7eb",
-                    marginBottom: "16px",
-                    gap: "24px",
-                }}
-            >
-                <button
-                    onClick={() =>
-                        setHistoryFilter(
-                            historyFilter === "CALLREPORT" ? "ALL" : "CALLREPORT"
-                        )
-                    }
+            {!hideFilters && (
+                <div
                     style={{
-                        padding: "8px 0",
-                        background: "none",
-                        border: "none",
-                        borderBottom:
-                            historyFilter === "CALLREPORT"
-                                ? "2px solid #7367f0"
-                                : "2px solid transparent",
-                        color: historyFilter === "CALLREPORT" ? "#7367f0" : "#6b7280",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        fontSize: "14px",
                         display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
+                        borderBottom: "1px solid #e5e7eb",
+                        marginBottom: "16px",
+                        gap: "24px",
                     }}
                 >
-                    Call Reports <span style={{ opacity: 0.7 }}>({callReportCount})</span>
-                </button>
-                <button
-                    onClick={() =>
-                        setHistoryFilter(historyFilter === "TASK" ? "ALL" : "TASK")
-                    }
-                    style={{
-                        padding: "8px 0",
-                        background: "none",
-                        border: "none",
-                        borderBottom:
-                            historyFilter === "TASK"
-                                ? "2px solid #7367f0"
-                                : "2px solid transparent",
-                        color: historyFilter === "TASK" ? "#7367f0" : "#6b7280",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                    }}
-                >
-                    Tâches <span style={{ opacity: 0.7 }}>({taskCount})</span>
-                </button>
-            </div>
+                    <button
+                        onClick={() =>
+                            setHistoryFilter(
+                                historyFilter === "CALLREPORT" ? "ALL" : "CALLREPORT"
+                            )
+                        }
+                        style={{
+                            padding: "8px 0",
+                            background: "none",
+                            border: "none",
+                            borderBottom:
+                                historyFilter === "CALLREPORT"
+                                    ? "2px solid #7367f0"
+                                    : "2px solid transparent",
+                            color: historyFilter === "CALLREPORT" ? "#7367f0" : "#6b7280",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                        }}
+                    >
+                        Call Reports <span style={{ opacity: 0.7 }}>({callReportCount})</span>
+                    </button>
+                    <button
+                        onClick={() =>
+                            setHistoryFilter(historyFilter === "TASK" ? "ALL" : "TASK")
+                        }
+                        style={{
+                            padding: "8px 0",
+                            background: "none",
+                            border: "none",
+                            borderBottom:
+                                historyFilter === "TASK"
+                                    ? "2px solid #7367f0"
+                                    : "2px solid transparent",
+                            color: historyFilter === "TASK" ? "#7367f0" : "#6b7280",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                        }}
+                    >
+                        Tâches <span style={{ opacity: 0.7 }}>({taskCount})</span>
+                    </button>
+                </div>
+            )}
 
             {isEmpty ? (
                 <div style={emptyStateStyle}>
@@ -139,7 +214,7 @@ const ActivityList = ({ items = [], onEdit, onDelete, editingItem, saveEditHandl
                 </div>
             ) : (
                 <div>
-                    {filteredItems.map((item, index) => (
+                    {displayItems.map((item, index) => (
                         <div key={item.id || index} style={listItemStyle}>
                             <div
                                 style={{
@@ -155,6 +230,7 @@ const ActivityList = ({ items = [], onEdit, onDelete, editingItem, saveEditHandl
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
+                                    flexShrink: 0,
                                 }}
                             >
                                 {item.type === "CALLREPORT" && (
@@ -193,43 +269,34 @@ const ActivityList = ({ items = [], onEdit, onDelete, editingItem, saveEditHandl
                                 </div>
                             ) : (
                                 <>
-                                    <div style={{ flex: 1 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
                                         <p
                                             style={{
                                                 margin: 0,
                                                 fontSize: "14px",
                                                 color: "#374151",
                                                 fontWeight: 500,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: compact ? "nowrap" : "normal",
                                             }}
+                                            title={getPreview(item)}
                                         >
-                                            {item.type === "TASK"
-                                                ? getTaskText(item)
-                                                : item.call_report ||
-                                                item.content ||
-                                                item.report ||
-                                                item.message ||
-                                                "Élément"}
+                                            {getPreview(item)}
                                         </p>
-                                        <p
-                                            style={{
-                                                margin: "4px 0 0",
-                                                fontSize: "12px",
-                                                color: "#9ca3af",
-                                            }}
-                                        >
-                                            {new Date(
-                                                item.created_at || item.date || Date.now()
-                                            ).toLocaleDateString("fr-FR", {
-                                                day: "2-digit",
-                                                month: "2-digit",
-                                                year: "numeric",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
+                                        <p style={metaStyle}>
+                                            <span>
+                                                Création:{" "}
+                                                {formatDateFr(
+                                                    item.created_at || item.date || null
+                                                )}
+                                            </span>
+                                            <span>·</span>
+                                            <span>Échéance: {getEcheance(item)}</span>
                                         </p>
                                     </div>
                                     {/* Action Buttons */}
-                                    {item.type !== "LOG" && (
+                                    {item.type !== "LOG" && !compact && (
                                         <div style={{ display: "flex", gap: "4px" }}>
                                             <button
                                                 onClick={() => onEdit(item)}

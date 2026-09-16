@@ -40,7 +40,6 @@ import {
 } from "react-feather";
 import SimulatorHub from "../user/edit/SimulatorHub";
 import DocumentsHub from "../user/edit/DocumentsHub";
-import { canAccessSimulator } from "../../../constants/permissions";
 
 /*const handleNavigation = (e, path) => {
   e.preventDefault()
@@ -328,7 +327,6 @@ class UserView extends React.Component {
                   Commentaires
                 </NavLink>
               </NavItem>
-              {canAccessSimulator() && (
                 <NavItem>
                   <NavLink
                     id="simulateur-link-profile"
@@ -341,7 +339,6 @@ class UserView extends React.Component {
                     <span id="simulateur-label-profile"> Simulateur</span>
                   </NavLink>
                 </NavItem>
-              )}
             </Nav>
 
             <TabContent activeTab={this.state.activeTab}>
