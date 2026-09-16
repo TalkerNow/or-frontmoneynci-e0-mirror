@@ -3,7 +3,7 @@ import * as Icon from "react-feather";
 
 /**
  * Menu CRM — tip C + Cap'tain GO 2026-09-15 (TEST)
- * Admin order: Tableau de bord · Contacts · Leads · Tâches · Accès · Admin moteur
+ * Admin order: Tableau de bord · Contacts · Leads · Suivi administratif · Tâches · Accès · Admin moteur
  * Contacts = leaf people → /app/user/clientslist (no children)
  * Leads = Mail · Chatbot · Diagnostic · Inscrits (Appels DROP — no invent)
  * Clients sidebar leaf REMOVED — filter tab « Clients » lives inside Contacts list only
@@ -84,6 +84,17 @@ const items = {
     ],
   },
 
+
+  // Suivi administratif = admin leaf → /kpi/suivi (Cap'tain AMEND tip 2026-09-16)
+  crmSuivi: {
+    id: "crm-suivi",
+    title: "Suivi administratif",
+    type: "item",
+    icon: <Icon.FileText size={20} />,
+    permissions: ["admin"],
+    navLink: "/kpi/suivi",
+  },
+
   tasks: {
     id: "tasks",
     title: "Tâches",
@@ -111,7 +122,7 @@ const items = {
   },
 };
 
-const adminOrder = ["dashboard", "contacts", "contact", "tasks", "consultantAccess", "adminMoteur"];
+const adminOrder = ["dashboard", "contacts", "contact", "crmSuivi", "tasks", "consultantAccess", "adminMoteur"];
 const consultantOrder = ["clientsList", "tasks"];
 
 const buildMenu = (order) => order.map((key) => items[key]).filter(Boolean);

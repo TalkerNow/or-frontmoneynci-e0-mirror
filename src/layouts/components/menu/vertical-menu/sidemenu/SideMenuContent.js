@@ -739,7 +739,7 @@ class SideMenuContent extends React.Component {
               // Clients (has navLink): opening also navigates; closing just closes.
               if (item.navLink && !wasOpen) {
                 const targetLink =
-                  item.id === "kpi" && this.state.crmBadge > 0
+                  item.id === "crm-suivi" && this.state.crmBadge > 0
                     ? "/kpi/suivi"
                     : item.navLink;
                 this.props.handleActiveItem(targetLink);
@@ -767,7 +767,7 @@ class SideMenuContent extends React.Component {
                 : "justify-content-start"
             }`}
             style={
-              ((item.id === "kpi" && this.state.crmBadge > 0) ||
+              ((item.id === "crm-suivi" && this.state.crmBadge > 0) ||
                 (item.id === "tasks" && this.state.tasksBadge > 0) ||
                 (item.id === "contracts" && this.state.contractsBadge > 0)) &&
               !this.props.isCollapsed
@@ -792,7 +792,7 @@ class SideMenuContent extends React.Component {
               {/* Petit point rouge pour les notifs (visible en collapsed) */}
               {((item.id === "contracts" && this.state.contractsBadge > 0) ||
                 (item.id === "tasks" && this.state.tasksBadge > 0) ||
-                (item.id === "kpi" && this.state.crmBadge > 0)) && (
+                (item.id === "crm-suivi" && this.state.crmBadge > 0)) && (
                 <span
                   className="sidebar-notif-dot"
                   style={{
@@ -868,7 +868,7 @@ class SideMenuContent extends React.Component {
             ) : null}
 
             {/* ✅ Badge CRM (Suivi Admin) */}
-            {item.id === "kpi" && this.state.crmBadge > 0 ? (
+            {item.id === "crm-suivi" && this.state.crmBadge > 0 ? (
               <span
                 className="sidebar-badge-num"
                 style={{
