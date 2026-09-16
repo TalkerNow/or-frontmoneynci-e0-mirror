@@ -73,7 +73,7 @@ const ManualCareerTable = ({
                                 <tr>
                                     <th className="col-year">Année</th>
                                     <th className="col-large">Rémunération annuelle brute</th>
-                                    <th className="col-small">Déplafonner</th>
+                                    <th className="col-micro col-dep" title="Déplafonner">DEP</th>
                                     <th className="col-micro">TRIM</th>
                                     <th className="col-micro">AR</th>
                                     <th className="col-micro">TOT</th>
@@ -160,7 +160,7 @@ const ManualCareerTable = ({
                                                 aria-label="Rémunération annuelle brute"
                                             />
                                         </td>
-                                        <td className="col-small" style={{ textAlign: 'center' }}>
+                                        <td className="col-micro col-dep" style={{ textAlign: 'center' }}>
                                             {parseInt(row.annee, 10) < 2005 && (
                                                 <input
                                                     type="checkbox"

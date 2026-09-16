@@ -641,6 +641,15 @@ export default function KpiPage() {
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
   const [diagError, setDiagError] = useState("");
 
+  // Inbound emails (source=cf7 only, last ~20d, read+unread) — Mails/contacts
+  const [inboundEmails, setInboundEmails] = useState([]);
+  const [loadingInboundEmails, setLoadingInboundEmails] = useState(false);
+  const [inboundEmailError, setInboundEmailError] = useState("");
+
+  // Call notes from Leads/Mail bandeau Appeler (call_report table)
+  const [callReports, setCallReports] = useState([]);
+  const [loadingCallReports, setLoadingCallReports] = useState(false);
+
   const handleSort = (field) => {
     setSortField((prevField) => {
       if (prevField === field) {
@@ -1036,6 +1045,73 @@ export default function KpiPage() {
     }
   }
 
+
+  async function fetchInboundEmails() {
+    try {
+      setLoadingInboundEmails(true);
+      setInboundEmailError("");
+      const perPage = 200;
+      let page = 1;
+      let last = 1;
+      const aggregated = [];
+      // HARD Cap'tain: Mail list = last ~20 days, source=cf7, read AND unread
+      const from20 = new Date();
+      from20.setDate(from20.getDate() - 20);
+      const fromIso = from20.toISOString().slice(0, 19).replace("T", " ");
+      do {
+        const res = await API.get("/inbound-emails", {
+          params: { source: "cf7", from: fromIso, per_page: perPage, page },
+        });
+        const payload = res.data;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        aggregated.push(...rows);
+        last = Number(payload?.last_page || payload?.meta?.last_page || 1);
+        page += 1;
+      } while (page <= last && page <= 20);
+      setInboundEmails(aggregated);
+    } catch (e) {
+      console.error("fetchInboundEmails error:", e);
+      setInboundEmailError("Impossible de charger les mails entrants.");
+      setInboundEmails([]);
+    } finally {
+      setLoadingInboundEmails(false);
+    }
+  }
+
+  async function fetchCallReports() {
+    try {
+      setLoadingCallReports(true);
+      const perPage = 50;
+      let page = 1;
+      let last = 1;
+      const aggregated = [];
+      do {
+        const res = await API.get("/v1/call-reports", {
+          params: { per_page: perPage, page },
+        });
+        const payload = res.data;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        aggregated.push(...rows);
+        last = Number(payload?.last_page || payload?.meta?.last_page || 1);
+        page += 1;
+      } while (page <= last && page <= 50);
+      setCallReports(aggregated);
+    } catch (e) {
+      console.error("fetchCallReports error:", e);
+      setCallReports([]);
+    } finally {
+      setLoadingCallReports(false);
+    }
+  }
+
   // Effets de chargement
   useEffect(() => {
     fetchKpis(1);
@@ -1047,6 +1123,8 @@ export default function KpiPage() {
     fetchClients();
     fetchConversationArchives();
     fetchDiagnosticResults();
+    fetchInboundEmails();
+    fetchCallReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1494,9 +1572,11 @@ export default function KpiPage() {
               ? "Suivi Administratif"
               : location.pathname.includes("/kpi/opportunities")
                 ? "Opportunités"
-                : location.pathname.includes("/kpi/clients") // Assuming clients route exists or will exist
+                : location.pathname.includes("/kpi/clients")
                   ? "Clients"
-                  : "Boîte De Réception"}
+                  : location.pathname.includes("/inbox/email")
+                    ? "Mails / contacts"
+                    : "Boîte De Réception"}
           </span>
         </div>
         <div style={{ marginLeft: "auto" }}>
@@ -2677,40 +2757,63 @@ export default function KpiPage() {
           // Créer la liste brute avec tous les items
           const allRawItems = [
             ...conversations.map((c) => markMultiChannel(c, "chatbot")),
-            ...diagnostics.map((d) => markMultiChannel(d, "diagnostic")),
+            // Diagnostic retraite gratuit : ne remonte que si email + tel étaient
+            // déjà tous les deux présents à la création (crm_eligible figé côté back).
+            ...diagnostics
+              .filter((d) => d.crm_eligible)
+              .map((d) => markMultiChannel(d, "diagnostic")),
+            // Appels only from kpis — emails come from inbound_emails (not kpis)
             ...allItems
               .filter((kpi) => {
                 const obj = (kpi.objet || kpi.object || "")
                   .toString()
                   .toLowerCase();
                 const act = (kpi.action || "").toString().toLowerCase();
-
-                return (
-                  obj.includes("email") ||
-                  obj.includes("appel") ||
-                  act.includes("email") ||
-                  act.includes("appel") ||
-                  act === "email reçu" ||
-                  act === "email recu"
-                );
-              })
-              .map((kpi) => {
-                const obj = (kpi.objet || kpi.object || "")
-                  .toString()
-                  .toLowerCase();
-                const act = (kpi.action || "").toString().toLowerCase();
-
                 const isEmail =
                   obj.includes("email") ||
                   act.includes("email") ||
                   act.includes("email reçu") ||
                   act.includes("email recu");
-
-                return {
-                  ...kpi,
-                  _source: isEmail ? "email" : "call",
-                };
-              }),
+                const isCall =
+                  obj.includes("appel") ||
+                  act.includes("appel") ||
+                  act.includes("call");
+                return isCall && !isEmail;
+              })
+              .map((kpi) => ({
+                ...kpi,
+                _source: "call",
+              })),
+            // Notes d'appel Leads/Mail bandeau Appeler (call_report) — real API rows only
+            ...callReports.map((row) => {
+              const clientName = row.client_id
+                ? clientsById[row.client_id] || ""
+                : "";
+              const parts = String(clientName).trim().split(/\s+/).filter(Boolean);
+              const first =
+                parts.length > 1 ? parts.slice(0, -1).join(" ") : clientName;
+              const last = parts.length > 1 ? parts[parts.length - 1] : "";
+              return {
+                id: `cr-${row.id}`,
+                _source: "call",
+                type: "call",
+                note: row.call_report || "",
+                objet: "Appel",
+                user_id: row.client_id || null,
+                client_id: row.client_id || null,
+                admin_id: row.admin_id || null,
+                created_at: row.created_at,
+                client_first_name: first || "",
+                client_last_name: last || "",
+                _fromCallReport: true,
+              };
+            }),
+            // Mails/contacts = inbound_emails source=cf7 only (HARD: no kpis)
+            ...inboundEmails.map((row) => ({
+              ...row,
+              _source: "email",
+              created_at: row.received_at || row.created_at,
+            })),
           ];
 
           // Dédupliquer par téléphone pour éviter le ±2
@@ -2778,13 +2881,19 @@ export default function KpiPage() {
                         : "all"
               }
               loading={
-                loadingConversations || loadingDiagnostics || loadingList
+                loadingConversations ||
+                loadingDiagnostics ||
+                loadingList ||
+                loadingInboundEmails ||
+                loadingCallReports
               }
-              error={convError || diagError}
+              error={convError || diagError || inboundEmailError}
               onSelect={handleSelectConversation}
               onDataRefresh={() => {
                 fetchConversationArchives();
                 fetchDiagnosticResults();
+                fetchInboundEmails();
+                fetchCallReports();
               }}
             />
           );

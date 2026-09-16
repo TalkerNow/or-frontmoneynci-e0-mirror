@@ -590,6 +590,18 @@ class DropzoneBasic extends React.Component {
               {filesInFolder.length} fichier(s)
             </div>
           </div>
+          {this.state.currentFolder === 1 && (
+            <Button
+              color="secondary"
+              outline
+              size="sm"
+              className="ml-auto"
+              disabled
+              title="Bientôt disponible (YouTrust)"
+            >
+              Envoi procuration
+            </Button>
+          )}
         </div>
 
         <Dropzone onDrop={this.onDrop}>

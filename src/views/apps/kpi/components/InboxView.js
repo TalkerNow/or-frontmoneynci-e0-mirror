@@ -7,6 +7,7 @@ import "./InboxView.css";
 import {
   calculateComplexityScore,
   mapConversationToInboxItem,
+  mapInboundEmailToInboxItem,
 } from "./inbox/utils";
 import { generateStrategicAnalysis, generateGeminiContent } from "./inbox/api";
 import InboxList from "./inbox/InboxList";
@@ -39,11 +40,31 @@ const InboxView = ({
   // Sort and Map Items
   const allInboxItems = useMemo(() => {
     if (!items || items.length === 0) return [];
-    return items.map(mapConversationToInboxItem).sort((a, b) => {
-      const dateA = new Date(a.raw?.created_at || a.raw?.kpi_date || 0);
-      const dateB = new Date(b.raw?.created_at || b.raw?.kpi_date || 0);
-      return dateB - dateA; // Most recent first
-    });
+    return items
+      .map((raw) => {
+        const src = raw?._source || raw?.type;
+        if (src === "email" || raw?.gmail_message_id != null) {
+          return mapInboundEmailToInboxItem(raw);
+        }
+        return mapConversationToInboxItem(raw);
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const parse = (v) => {
+          if (!v) return 0;
+          let s = String(v);
+          if (/^\d{4}-\d{2}-\d{2} \d{2}:/.test(s)) s = s.replace(" ", "T");
+          const d = new Date(s);
+          return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+        const dateA = parse(
+          a.raw?.received_at || a.raw?.created_at || a.raw?.kpi_date,
+        );
+        const dateB = parse(
+          b.raw?.received_at || b.raw?.created_at || b.raw?.kpi_date,
+        );
+        return dateB - dateA;
+      });
   }, [items]);
 
   // Filter Items
@@ -55,13 +76,13 @@ const InboxView = ({
       filtered = filtered.filter((item) => item.type === filter);
     }
 
-    // Exclure les users avec role "Client"
-    filtered = filtered.filter((item) => item.raw?.user?.role !== "Client");
-
-    // Exclure les conversations dont le user_id est dans user-kanbans
-    filtered = filtered.filter(
-      (item) => !item.raw?.user_id || !kanbanUserIds.has(item.raw.user_id),
-    );
+    // Mail channel = inbound_emails — no Client/kanban CRM filters
+    if (filter !== "email") {
+      filtered = filtered.filter((item) => item.raw?.user?.role !== "Client");
+      filtered = filtered.filter(
+        (item) => !item.raw?.user_id || !kanbanUserIds.has(item.raw.user_id),
+      );
+    }
 
     return filtered;
   }, [allInboxItems, filter, kanbanUserIds]);
@@ -139,7 +160,7 @@ const InboxView = ({
 
   // Disqualify Modal State
   const [showDisqualifyModal, setShowDisqualifyModal] = useState(false);
-  const [disqualifyReason, setDisqualifyReason] = useState("");
+  const [disqualifyReason, setDisqualifyReason] = useState("mail_non_pertinent");
   const [disqualifyComment, setDisqualifyComment] = useState("");
   const [isDisqualifying, setIsDisqualifying] = useState(false);
 
@@ -228,6 +249,42 @@ const InboxView = ({
       next.delete(`${item.type}-${item.id}`);
       return next;
     });
+    // Persist read on inbound_emails (always — idempotent; covers mark-unread then reopen)
+    if (item?.type === "email" && item?.id) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/inbound-emails/${item.id}/read`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark inbound email read", err));
+    }
+    // Persist read on conversation_archives (always — idempotent; covers mark-unread then reopen)
+    if (
+      (item?.type === "chatbot" ||
+        item?.type === "conversations-archives") &&
+      item?.id
+    ) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/conversation-archives/${item.id}/read`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark chatbot read", err));
+    }
     if (onSelect) onSelect(item.id);
   };
 
@@ -244,6 +301,43 @@ const InboxView = ({
     setManualUnreadIds((prev) =>
       new Set(prev).add(`${target.type}-${target.id}`),
     );
+
+    // Persist unread on inbound_emails
+    if (target.type === "email" && target.id) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/inbound-emails/${target.id}/unread`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark inbound email unread", err));
+    }
+
+    // Persist unread on conversation_archives (Chatbot badge)
+    if (
+      target.type === "chatbot" ||
+      target.type === "conversations-archives"
+    ) {
+      const token = localStorage.getItem("token");
+      axios
+        .patch(
+          `${global.config.server_url}/conversation-archives/${target.id}/unread`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        .then(() => {
+          try {
+            window.dispatchEvent(new Event("eor-inbox-badge-refresh"));
+          } catch (e) {}
+        })
+        .catch((err) => console.error("mark chatbot unread", err));
+    }
 
     // Toast notification could be moved to a utility or separate component
     const toast = document.createElement("div");
@@ -306,10 +400,38 @@ const InboxView = ({
     setIsGenerating(false);
   };
 
-  const handleConvert = () => {
-    if (!selectedItem) return;
+  const handleConvert = async (e, item = null) => {
+    if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+    const target = item || selectedItem;
+    if (!target) return;
+    if (item) setSelectedItem(item);
 
-    const fullName = selectedItem.name || "";
+    // Lot1: CF7/inbound Mail Convertir → upsert Contact + open fiche (TEST)
+    if (target.type === "email" && target.id) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.post(
+          global.config.server_url +
+            `/inbound-emails/${target.id}/convert-contact`,
+          {},
+          { headers: { Authorization: "Bearer " + token } },
+        );
+        const clientId = res.data?.client_id;
+        if (clientId) {
+          routerHistory.push(`/app/user/edit/${clientId}/2`);
+          return;
+        }
+      } catch (err) {
+        console.error("convert-contact failed", err);
+        window.alert(
+          err?.response?.data?.message ||
+            "Impossible de créer/lier le contact depuis ce mail.",
+        );
+        return;
+      }
+    }
+
+    const fullName = target.name || "";
     const nameParts = fullName.trim().split(" ");
     let firstName = "";
     let lastName = "";
@@ -318,14 +440,14 @@ const InboxView = ({
       lastName = nameParts.slice(1).join(" ");
     }
 
-    const attrs = selectedItem.raw?.attributes || {};
+    const attrs = target.raw?.attributes || {};
     let civility = "";
     if (attrs.CIVILITE === "M") civility = "Monsieur";
     else if (attrs.CIVILITE === "Mme") civility = "Madame";
 
     const birthDateRaw =
-      selectedItem.raw?.birth_date ||
-      selectedItem.raw?.date_naissance ||
+      target.raw?.birth_date ||
+      target.raw?.date_naissance ||
       attrs.DATE_NAISSANCE;
     let birth_date = null;
     if (birthDateRaw) {
@@ -337,8 +459,8 @@ const InboxView = ({
     const prefillData = {
       first_name: firstName,
       last_name: lastName,
-      email: selectedItem.email || attrs.EMAIL,
-      mobile_number: selectedItem.phone || attrs.TELEPHONE,
+      email: target.email || attrs.EMAIL,
+      mobile_number: target.phone || attrs.TELEPHONE,
       children_number: attrs.NBR_ENFANTS,
       birth_date: birth_date,
       military_service:
@@ -408,7 +530,7 @@ const InboxView = ({
 
       setDisqualifiedIds((prev) => new Set([...prev, selectedItem.id]));
       setShowDisqualifyModal(false);
-      setDisqualifyReason("");
+      setDisqualifyReason("mail_non_pertinent");
       setDisqualifyComment("");
 
       // Move selection
@@ -460,12 +582,20 @@ const InboxView = ({
         readIds={readIds}
         manualUnreadIds={manualUnreadIds}
         onMarkAsUnread={handleMarkAsUnread}
+        onDisqualify={(e, item) => {
+          if (e && e.stopPropagation) e.stopPropagation();
+          if (item) setSelectedItem(item);
+          setDisqualifyReason("mail_non_pertinent");
+          setShowDisqualifyModal(true);
+        }}
+        onConvert={handleConvert}
+        filter={filter}
       />
 
       <InboxDetail
         selectedItem={selectedItem}
         onMarkAsUnread={handleMarkAsUnread}
-        onDisqualify={() => setShowDisqualifyModal(true)}
+        onDisqualify={() => { setDisqualifyReason("mail_non_pertinent"); setShowDisqualifyModal(true); }}
         onConvert={handleConvert}
         strategicAnalysis={strategicAnalysis}
         isAnalyzing={isAnalyzing}

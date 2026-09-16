@@ -19,29 +19,34 @@ import classnames from "classnames";
 import {
   Info,
   Folder,
-  CheckSquare,
   ArrowLeft,
   Disc,
-  FileText,
   Mail,
-  Activity
+  Activity,
+  Phone,
+  CheckCircle,
+  X,
+  FileText,
+  Share2,
 } from "react-feather";
+import ActionsSection from "../../kpi/components/inbox/ActionsSection";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
+import SourceTab from "./SourceTab";
 import CommentsTab from "./Comments";
 import "../../../../assets/scss/pages/users.scss";
 import "../../profile/Profile.css";
 import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
+import Contracts from "./Contracts";
 import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import SimulatorIntegration from "./notes/SimulatorIntegration";
 import { history } from "../../../../history";
-import Contracts from "./Contracts";
-import SuiviAvancementBox from "./SuiviAvancementBox";
+// SuiviAvancementBox hidden from fiche Infos (JF 2026-09-08) — file kept
+// import SuiviAvancementBox from "./SuiviAvancementBox";
 
-import { canAccessSimulator } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
 
 
@@ -50,9 +55,10 @@ class UserEdit extends React.Component {
     rowData: [],
     members: [],
     activeTab: "notes",
+    documentsInitialSubTab: null,
     showFullForm: false,
     isCollapsed: false,
-    simulatorMode: "production",
+    // simulatorMode removed from Infos chrome — admin only via ?adminSection=1
     simuOffset: 0,
     docsOffset: 0,
     courriersOffset: 0,
@@ -60,6 +66,8 @@ class UserEdit extends React.Component {
     showUnsavedModal: false,
     taskCount: 0,
     hasUrgentTask: false,
+    docCount: 0,
+    ficheActionsView: null, // Lot1: CALLREPORT | TASK | null
   };
 
   navRef = null;
@@ -121,10 +129,11 @@ class UserEdit extends React.Component {
         7: "simulateur",
         8: "contrats",
       };
-      this.setState({
+      const next = {
         showFullForm: false,
         activeTab: mapNumToKey[tabParam] || "notes",
-      });
+      };
+      this.setState(next);
     }
   }
 
@@ -182,6 +191,23 @@ class UserEdit extends React.Component {
     }
   };
 
+  fetchDocCount = async () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    const { id } = this.props.match.params;
+    try {
+      const response = await axios.get(
+        global.config.server_url + "/files?user_id=" + id,
+        Config,
+      );
+      const files = Array.isArray(response.data) ? response.data : [];
+      this.setState({ docCount: files.length });
+    } catch (e) {
+      console.error("Error fetching doc count", e);
+    }
+  };
+
   fetchMembers = async () => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -210,6 +236,7 @@ class UserEdit extends React.Component {
     await this.fetchUser();
     await this.fetchMembers();
     await this.fetchTaskCount();
+    await this.fetchDocCount();
     // Calculate offsets immediately after mount for alignment
     setTimeout(() => {
       if (this.state.activeTab === "simulateur") this.computeSimuOffset();
@@ -251,6 +278,20 @@ class UserEdit extends React.Component {
       this.fetchUser();
       this.fetchMembers();
     }
+
+    // Tip 2026-09-16: horizontal Contrat is prospect-only — orphan deep-link
+    // (tab=8 / activeTab contrats) for clients -> Documents -> Contrats
+    const role = String(this.state.rowData?.role || "").toLowerCase();
+    if (
+      this.state.activeTab === "contrats" &&
+      role &&
+      role !== "prospect"
+    ) {
+      this.setState({
+        activeTab: "documents",
+        documentsInitialSubTab: "contrats",
+      });
+    }
   }
 
   // "Analyse carrière" from the Documents tab dispatches careerAnalysisFileReady.
@@ -268,8 +309,11 @@ class UserEdit extends React.Component {
   };
 
   toggle = (tab) => {
-    if (this.state.activeTab !== tab) {
-      const next = { activeTab: tab };
+    // Tip 2026-09-15: Contrat is a first-class right-panel tab (reuse Contracts UI)
+    // Cap'tain 2026-09-15 Appel panel: text tabs clear Appel/Tache so only ONE active underline
+    if (this.state.activeTab !== tab || this.state.ficheActionsView) {
+      const next = { activeTab: tab, ficheActionsView: null };
+      if (tab === "documents") next.documentsInitialSubTab = null;
       if (tab === "simulateur" && !this.state.isCollapsed)
         next.isCollapsed = true;
       this.setState(next, () => {
@@ -418,16 +462,9 @@ class UserEdit extends React.Component {
               backUrl={this.props.location && this.props.location.state ? this.props.location.state.backUrl : null}
             />
 
-            {/* 👇 Ta box de suivi d'avancement, dans un fichier séparé */}
-            {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
-              <SuiviAvancementBox
-                clientId={id}
-                onContractUpdate={() => {
-                  if (this.contractsRef.current) {
-                    this.contractsRef.current.fetchData();
-                  }
-                }}
-              />
+            {/* Suivi d'avancement — HIDDEN from fiche Infos (JF 2026-09-08); SuiviAvancementBox.js kept */}
+            {false && String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
+              null /* was <SuiviAvancementBox clientId={id} … /> */
             )}
           </div>
         </Col>
@@ -452,7 +489,18 @@ class UserEdit extends React.Component {
                 borderBottom: "none",
               }}
             >
-              <style>{`.nav-tabs .nav-link { white-space: nowrap; }`}</style>
+              <style>{`
+.nav-tabs .nav-link { white-space: nowrap; }
+[dir] .nav.nav-tabs .nav-item .nav-link.active {
+  font-weight: 700 !important;
+  background-color: #f8f9fa !important;
+  border-radius: 0.357rem;
+}
+[dir] .nav.nav-tabs .nav-item .nav-link.active:after,
+[dir] .nav.nav-tabs .nav-item .nav-link.active::after {
+  height: 3px !important;
+}
+`}</style>
               {this.state.isCollapsed && (
                 <NavItem className="d-flex align-items-center mr-50">
                   <div
@@ -472,11 +520,71 @@ class UserEdit extends React.Component {
               <NavItem>
                 <NavLink
                   className={classnames({
-                    active: this.state.activeTab === "notes",
+                    active: this.state.activeTab === "notes" && !this.state.ficheActionsView,
                   })}
                   onClick={() => this.toggle("notes")}
                 >
                   <Info className="text-primary mr-50" size={16} /> Infos
+                </NavLink>
+              </NavItem>
+
+              <NavItem>
+                <NavLink
+                  id={`source-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "source" && !this.state.ficheActionsView,
+                  })}
+                  onClick={() => this.toggle("source")}
+                >
+                  <Share2 className="text-primary mr-50" size={16} />
+                  <span id={`source-label-client-${id}`}> Source</span>
+                </NavLink>
+              </NavItem>
+
+              {String(this.state.rowData?.role).toLowerCase() === "prospect" && (
+                <NavItem>
+                  <NavLink
+                    id={`contrat-link-client-${id}`}
+                    className={classnames({
+                      active: this.state.activeTab === "contrats" && !this.state.ficheActionsView,
+                    })}
+                    onClick={() => this.toggle("contrats")}
+                  >
+                    <FileText className="text-primary mr-50" size={16} />
+                    <span id={`contrat-label-client-${id}`}> Contrat</span>
+                  </NavLink>
+                </NavItem>
+              )}
+
+              <NavItem>
+                <NavLink
+                  id={`documents-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "documents" && !this.state.ficheActionsView,
+                  })}
+                  onClick={() => this.toggle("documents")}
+                >
+                  <Folder className="text-primary mr-50" size={16} />
+                  <span id={`documents-label-client-${id}`}>
+                    {" "}
+                    Documents
+                  </span>
+                  {this.state.docCount > 0 && (
+                    <span
+                      className="badge badge-primary ml-50"
+                      style={{
+                        fontSize: "0.65rem",
+                        minWidth: "18px",
+                        height: "18px",
+                        padding: "0",
+                        lineHeight: "18px",
+                        textAlign: "center",
+                        borderRadius: "50%",
+                      }}
+                    >
+                      {this.state.docCount}
+                    </span>
+                  )}
                 </NavLink>
               </NavItem>
 
@@ -486,60 +594,7 @@ class UserEdit extends React.Component {
                   <NavItem>
                     <NavLink
                       className={classnames({
-                        active: this.state.activeTab === "contrats",
-                      })}
-                      onClick={() => this.toggle("contrats")}
-                    >
-                      <FileText className="text-primary mr-50" size={16} />{" "}
-                      Contrats
-                    </NavLink>
-                  </NavItem>
-                  <NavItem>
-                    <NavLink
-                      id={`documents-link-client-${id}`}
-                      className={classnames({
-                        active: this.state.activeTab === "documents",
-                      })}
-                      onClick={() => this.toggle("documents")}
-                    >
-                      <Folder className="text-primary mr-50" size={16} />
-                      <span id={`documents-label-client-${id}`}>
-                        {" "}
-                        Documents
-                      </span>
-                    </NavLink>
-                  </NavItem>
-                  <NavItem>
-                    <NavLink
-                      className={classnames("d-flex align-items-center", {
-                        active: this.state.activeTab === "tasks",
-                      })}
-                      onClick={() => this.toggle("tasks")}
-                    >
-                      <CheckSquare className="text-primary mr-50" size={16} />
-                      Tâches
-                      {this.state.taskCount > 0 && (
-                        <span
-                          className={`badge badge-${this.state.hasUrgentTask ? "danger" : "primary"} ml-50`}
-                          style={{
-                            fontSize: "0.65rem",
-                            minWidth: "18px",
-                            height: "18px",
-                            padding: "0",
-                            lineHeight: "18px",
-                            textAlign: "center",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          {this.state.taskCount}
-                        </span>
-                      )}
-                    </NavLink>
-                  </NavItem>
-                  <NavItem>
-                    <NavLink
-                      className={classnames({
-                        active: this.state.activeTab === "courriers",
+                        active: this.state.activeTab === "courriers" && !this.state.ficheActionsView,
                       })}
                       onClick={() => this.toggle("courriers")}
                     >
@@ -551,12 +606,11 @@ class UserEdit extends React.Component {
                     </NavLink>
                   </NavItem>
 
-                  {canAccessSimulator() && (
                     <NavItem>
                       <NavLink
                         id={`simulateur-link-client-${id}`}
                         className={classnames({
-                          active: this.state.activeTab === "simulateur",
+                          active: this.state.activeTab === "simulateur" && !this.state.ficheActionsView,
                         })}
                         onClick={() => this.toggle("simulateur")}
                       >
@@ -567,12 +621,122 @@ class UserEdit extends React.Component {
                         </span>
                       </NavLink>
                     </NavItem>
-                  )}
                 </>
               )}
+{/* Lot1 JF tip B icons: origin ActionsSection Phone/CheckCircle icon-only */}
+              <NavItem className="d-flex align-items-center ml-50" style={{ gap: 8 }}>
+                <button
+                  type="button"
+                  title="Appel"
+                  aria-label="Appel"
+                  onClick={() =>
+                    this.setState((s) => ({
+                      ficheActionsView:
+                        s.ficheActionsView === "CALLREPORT" ? null : "CALLREPORT",
+                    }))
+                  }
+                  style={{
+                    background:
+                      this.state.ficheActionsView === "CALLREPORT"
+                        ? "#eef2ff"
+                        : "none",
+                    border: "none",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    color:
+                      this.state.ficheActionsView === "CALLREPORT"
+                        ? "#4f46e5"
+                        : "#6b7280",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Phone size={20} />
+                </button>
+                <button
+                  type="button"
+                  title="Tâche"
+                  aria-label="Tâche"
+                  onClick={() =>
+                    this.setState((s) => ({
+                      ficheActionsView:
+                        s.ficheActionsView === "TASK" ? null : "TASK",
+                    }))
+                  }
+                  style={{
+                    background:
+                      this.state.ficheActionsView === "TASK" ? "#eef2ff" : "none",
+                    border: "none",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    color:
+                      this.state.ficheActionsView === "TASK"
+                        ? "#4f46e5"
+                        : "#6b7280",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CheckCircle size={20} />
+                </button>
+              </NavItem>
             </Nav>
           </div>
-          <TabContent activeTab={this.state.activeTab}>
+          {this.state.ficheActionsView && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: 16,
+                backgroundColor: "#f9fafb",
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                position: "relative",
+              }}
+            >
+              <button
+                type="button"
+                title="Fermer"
+                aria-label="Fermer"
+                onClick={() => this.setState({ ficheActionsView: null })}
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  padding: 4,
+                }}
+              >
+                <X size={16} />
+              </button>
+              <ActionsSection
+                clientId={id}
+                adminId={localStorage.getItem("userid")}
+                type="client"
+                hideNav
+                controlledView={this.state.ficheActionsView}
+                onViewChange={(v) =>
+                  this.setState({
+                    // Cap'tain tip Appel+Tâche: HOME closes bandeau; HISTORY/CALLREPORT/TASK keep it open
+                    ficheActionsView: v === "HOME" ? null : v,
+                  })
+                }
+              />
+            </div>
+          )}
+          {/* Cap'tain: hide text-tab panes while Appel/Tache bandeau open (no dual-active look) */}
+          <TabContent
+            activeTab={this.state.activeTab}
+            style={{ display: this.state.ficheActionsView ? "none" : undefined }}
+          >
             <TabPane tabId="notes">
               <NotesTab
                 data={this.state.rowData}
@@ -592,21 +756,38 @@ class UserEdit extends React.Component {
               />
             </TabPane>
 
+            <TabPane tabId="source">
+              <SourceTab id={id} data={this.state.rowData} />
+            </TabPane>
+
+            <TabPane tabId="contrats">
+              <Card className="mb-1" style={{ borderRadius: 12 }}>
+                <CardBody>
+                  <Contracts
+                    name={this.state.rowData?.name}
+                    id={id}
+                    parent_id={this.state.rowData?.parent_id}
+                    ref={this.contractsRef}
+                  />
+                </CardBody>
+              </Card>
+            </TabPane>
+
+            <TabPane tabId="documents">
+              <DocumentsHub
+                key={this.state.documentsInitialSubTab || "documents"}
+                ref={this.documentsHubRef}
+                id={id}
+                name={this.state.rowData?.name}
+                parent_id={this.state.rowData?.parent_id}
+                alignOffset={this.state.docsOffset}
+                labelId={`documents-label-client-${id}`}
+                initialSubTab={this.state.documentsInitialSubTab}
+              />
+            </TabPane>
+
             {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
               <>
-                <TabPane tabId="contrats">
-                  <Contracts id={id} ref={this.contractsRef} />
-                </TabPane>
-                <TabPane tabId="documents">
-                  <DocumentsHub
-                    ref={this.documentsHubRef}
-                    id={id}
-                    name={this.state.rowData.name}
-                    parent_id={this.state.rowData.parent_id}
-                    alignOffset={this.state.docsOffset}
-                    labelId={`documents-label-client-${id}`}
-                  />
-                </TabPane>
                 <TabPane tabId="tasks">
                   <ClientTasks
                     {...this.props}
@@ -648,42 +829,28 @@ class UserEdit extends React.Component {
 
       {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
         <div className="bottom-simulator-section mt-1" style={{ display: this.state.activeTab === "notes" ? "block" : "none" }}>
-          <div className="simu-mode-tabs">
-            <button
-              onClick={() => this.setState({ simulatorMode: "production" })}
-              style={{
-                borderBottom: this.state.simulatorMode === "production" ? "3px solid #6C5CE7" : "3px solid transparent",
-                background: this.state.simulatorMode === "production" ? "#6C5CE708" : "transparent",
-                color: this.state.simulatorMode === "production" ? "#6C5CE7" : "#888",
-              }}
-            >
-              Production Client
-            </button>
-            {(() => {
-              try {
-                const token = localStorage.getItem("token") || "";
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                return [4, 1271, 1638].includes(parseInt(payload.sub));
-              } catch { return false; }
-            })() && (
-              <button
-                onClick={() => this.setState({ simulatorMode: "admin" })}
-                style={{
-                  borderBottom: this.state.simulatorMode === "admin" ? "3px solid #E17055" : "3px solid transparent",
-                  background: this.state.simulatorMode === "admin" ? "#E1705508" : "transparent",
-                  color: this.state.simulatorMode === "admin" ? "#E17055" : "#888",
-                }}
-              >
-                Admin & Moteur
-              </button>
-            )}
-          </div>
-          <SimulatorIntegration
-            user={this.state.rowData}
-            mode={this.state.simulatorMode}
-            id={id}
-            onUserUpdate={(updates) => this.setState(prev => ({ rowData: { ...prev.rowData, ...updates } }))}
-          />
+          {/* Infos chrome: no "Production Client" / "Admin & Moteur" tabs (JF 2026-09-08).
+              Default = production. Admin UI only if allowlisted user AND ?adminSection=1 (explicit).
+              AdminEngineChat / admin panels kept behind mode==="admin", not deleted. */}
+          {(() => {
+            const search = (this.props.location && this.props.location.search) || "";
+            const wantAdmin = new URLSearchParams(search).get("adminSection");
+            let allowlisted = false;
+            try {
+              const token = localStorage.getItem("token") || "";
+              const payload = JSON.parse(atob(token.split(".")[1]));
+              allowlisted = [4, 1271, 1638].includes(parseInt(payload.sub, 10));
+            } catch (e) { allowlisted = false; }
+            const mode = wantAdmin && allowlisted ? "admin" : "production";
+            return (
+              <SimulatorIntegration
+                user={this.state.rowData}
+                mode={mode}
+                id={id}
+                onUserUpdate={(updates) => this.setState(prev => ({ rowData: { ...prev.rowData, ...updates } }))}
+              />
+            );
+          })()}
         </div>
       )}
     </>

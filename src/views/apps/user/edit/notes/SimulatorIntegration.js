@@ -32,7 +32,7 @@ import { RegimeRecapVignettes } from "./RecapCarriereParRegime";
 import SimulatorChatPanel from "./SimulatorChatPanel";
 import { buildSimulatorContext } from "./simulatorContext";
 import BaremeRetraitePage from "../../../bareme-retraite";
-import { coeffRevalo, initBareme, seuilValidationTrimestre } from "../simulatorData";
+import { coeffRevalo, initBareme, getBaremeRetraite, seuilValidationTrimestre } from "../simulatorData";
 import {
   parseBirthYear,
   computeTargetYear,
@@ -978,6 +978,10 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [modal, setModal] = useState(null);
   const [preentretienModal, setPreentretienModal] = useState(null);
   const [systemPromptModal, setSystemPromptModal] = useState(null);
+  // Assistant lecture-consigne — GET-only Admin refs (never apply / skill_calcul_py).
+  const [assistantPromptsCatalogue, setAssistantPromptsCatalogue] = useState(null);
+  const [assistantRegistryMeta, setAssistantRegistryMeta] = useState(null);
+
   const [hiddenSystemPrompt, setHiddenSystemPrompt] = useState("");
   const [showDetailedCalcs, setShowDetailedCalcs] = useState(false);
   const [expandedScenarios, setExpandedScenarios] = useState({});
@@ -1133,6 +1137,21 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
   const [droitsSynthese, setDroitsSynthese] = useState(null);
   const [risCarriereSynthese, setRisCarriereSynthese] = useState(null);
   const [lastRisPayload, setLastRisPayload] = useState(null);
+  // Tranche C AGIRC-ARRCO : points acquis avant 2016 (relevé de points AGIRC-ARRCO,
+  // ligne "Dont TC avant 2016"). Minorés par l'âge (tableau 3) si liquidation avant 67 ans,
+  // même au taux plein. Saisie manuelle pour l'instant (parseur d'upload à venir).
+  const [agircPointsTc, setAgircPointsTc] = useState(() => {
+    try { return localStorage.getItem(`simu_agirc_tc_${id}`) || ""; } catch { return ""; }
+  });
+  const [agircTcReport67, setAgircTcReport67] = useState(() => {
+    try { return localStorage.getItem(`simu_agirc_tc_report67_${id}`) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(`simu_agirc_tc_${id}`, agircPointsTc || "");
+      localStorage.setItem(`simu_agirc_tc_report67_${id}`, agircTcReport67 ? "1" : "0");
+    } catch { /* quota */ }
+  }, [agircPointsTc, agircTcReport67, id]);
   const [cnavplRows, setCnavplRows] = useState(() => {
     const yrs = [2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015];
     return Object.fromEntries(yrs.map(yr => [yr, { revenus: "", revCnavpl: "", points: "" }]));
@@ -2278,6 +2297,43 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
     axios.get(`${global.config.server_url}/v1/system-prompt/latest`, Config)
       .then((res) => setHiddenSystemPrompt(res.data?.prompt_text || ""))
       .catch(() => {});
+  }, []);
+
+  // Assistant context: prefetch prompts catalogue + registry (GET only; soft-fail).
+  // Never call admin-chat apply / skill_calcul_py from this path.
+  useEffect(() => {
+    let alive = true;
+    api.get("/prompts")
+      .then((res) => {
+        if (!alive) return;
+        const raw = (res.data && res.data.data) || res.data || [];
+        const list = Array.isArray(raw) ? raw : [];
+        setAssistantPromptsCatalogue(
+          list
+            .map((p) => ({ id: p.id, name: p.name || p.title || null }))
+            .filter((p) => p.id != null)
+            .slice(0, 40)
+        );
+      })
+      .catch(() => { if (alive) setAssistantPromptsCatalogue(null); });
+    api.get("/v1/admin-chat/registry")
+      .then((res) => {
+        if (!alive) return;
+        const parsed = res.data && res.data.parsed;
+        let rules = [];
+        if (parsed && Array.isArray(parsed.rules)) rules = parsed.rules;
+        else if (Array.isArray(parsed)) rules = parsed;
+        setAssistantRegistryMeta({
+          prompt_id: (res.data && res.data.prompt_id) != null ? res.data.prompt_id : null,
+          rules_count: rules.length,
+          rule_codes: rules
+            .map((r) => r.code || r.id || null)
+            .filter(Boolean)
+            .slice(0, 30),
+        });
+      })
+      .catch(() => { if (alive) setAssistantRegistryMeta(null); });
+    return () => { alive = false; };
   }, []);
 
   // ── Parse PDF via n8n v6 (direct webhook, SimulatorV6 compatible) ─────────
@@ -3726,6 +3782,22 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
               ?? 0,
             10
           ) || 0,
+          // Statut pro (optionnel, fiche client) : impacte la majoration de trimestres enfants
+          // (prive = MDA 8/enfant mere ; fonctionnaire = bonification 4/enfant H ou F).
+          statut: (() => {
+            const s = String(
+              user?.profil?.statut_pro ?? user?.statut_pro ?? user?.statut ?? ''
+            ).toLowerCase().trim();
+            if (s.startsWith('fonct') || s === 'public' || s.includes('fonction publique')) return 'fonctionnaire';
+            return 'prive';
+          })(),
+          // Nombre d'enfants handicapes (optionnel, fiche client) : +8 trim/enfant.
+          nombre_enfants_handicapes: parseInt(
+            user?.profil?.nombre_enfants_handicapes
+              ?? user?.nombre_enfants_handicapes
+              ?? 0,
+            10
+          ) || 0,
           nir: nir || null,
           valide_le: new Date().toISOString().split("T")[0],
         },
@@ -3785,10 +3857,15 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
             ?? risCarriereSynthese?.trimestres_requis_taux_plein
             ?? 172,
           trimestres_par_regime,
+          // Tranche C avant 2016 (saisie manuelle) : retranchée du total et minorée par l'âge
+          // dans le moteur si liquidation avant 67 ans. 0/absent => aucun effet.
+          agirc_points_tc: parseFloat(String(agircPointsTc).replace(',', '.')) || 0,
+          agirc_tc_report_67: !!agircTcReport67,
           points_officiels: {
             agirc_arrco: {
               total_points: totalPointsAgirc,
               valeur_point: droitsSynthese?.agirc_arrco?.valeur_point || 1.4386,
+              points_tc: parseFloat(String(agircPointsTc).replace(',', '.')) || 0,
             },
             cipav: {
               points_base: totalPointsCipavBase,
@@ -3865,7 +3942,7 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
       setFrozenLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, carpimkoRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty, accessGranted]);
+  }, [id, carriereRows, revaloValues, deplafValues, trimCotState, trimAssState, user, cnavplRows, carpimkoRows, droitsSynthese, risCarriereSynthese, isCarriereEmpty, accessGranted, agircPointsTc, agircTcReport67]);
 
   const handleCalculateAllRegimes = async () => {
     if (!carriereValidee) return;
@@ -4497,193 +4574,55 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
 
       {mode === "production" && (
         <div style={{ padding: "0 4px" }}>
-{/* Zone documents — real upload */}
-              <div style={{ ...S.card, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>📁 Documents</div>
 
-                {/* Dropzone */}
-                <Dropzone disabled={isUploading} onDrop={handleUpload}>
-                  {({ getRootProps, getInputProps, isDragActive }) => (
-                    <div {...getRootProps()} className={"docs-dropzone" + (isDragActive ? " is-dragging" : "")} style={{ border: "2px dashed #ccc", borderRadius: 9, padding: "16px 14px", textAlign: "center", cursor: isUploading ? "wait" : "pointer", background: "#fafafa", transition: "all 0.15s", marginBottom: 10 }}>
-                      <input {...getInputProps()} />
-                      <DownloadCloud size={28} color="#6C5CE7" className="docs-dropzone-icon" style={{ marginBottom: 4 }} />
-                      <div style={{ fontWeight: 600, color: "#6C5CE7", fontSize: 13 }}>
-                        {isUploading ? "Import en cours…" : isDragActive ? "Déposez pour importer" : "Déposez tous vos documents ici"}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>{isDragActive ? "Relâchez le fichier ici" : "Glissez-déposez un fichier ou cliquez pour parcourir"}</div>
-                    </div>
-                  )}
-                </Dropzone>
+          {/* ── CHATBOT ASSISTANT CONTEXTUEL — visible uniquement pour admin/consultant ── */}
+          {user?.id &&
+            ["admin", "consultant"].includes(
+              ((window.localStorage && window.localStorage.getItem("role")) || "").toLowerCase()
+            ) && (
+            <SimulatorChatPanel
+              clientId={user.id}
+              pinnedNote={pinnedNote}
+              onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
+              onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
+              onAttach={handleUpload}
+              profileDocs={orderedDocs}
+              onSelectProfileDoc={handleSelectDocument}
+              getContext={() => {
+                const bareme = user?.birth_date ? getBaremeRetraite(user.birth_date) : null;
+                const spText = hiddenSystemPrompt || "";
+                return buildSimulatorContext({
+                  user,
+                  carriereRows,
+                  carriereValidee,
+                  chosenScenarios,
+                  chosenDates,
+                  scenarioSkillResults,
+                  systemPromptMeta: spText
+                    ? {
+                        loaded: true,
+                        excerpt: spText.slice(0, 400),
+                        length: spText.length,
+                        source: "GET /v1/system-prompt/latest",
+                      }
+                    : { loaded: false, source: "GET /v1/system-prompt/latest" },
+                  promptsCatalogue: assistantPromptsCatalogue,
+                  departureRules: bareme
+                    ? {
+                        ageLegalLabel: bareme.ageLegalLabel,
+                        ageLegalMois: bareme.ageLegalMois,
+                        trimRequis: bareme.trimRequis,
+                        source: "GET /v1/departure-rules (via initBareme cache)",
+                      }
+                    : null,
+                  registryMeta: assistantRegistryMeta,
+                });
+              }}
+            />
+          )}
 
-                {/* Liste des documents réels */}
-                {isLoadingDocs ? (
-                  <div style={{ fontSize: 12, color: "#555", padding: "6px 0" }}>Chargement des documents…</div>
-                ) : ((orderedDocs.length > 0 || fileToSend)) ? (
-                  <div>
-                    <DragDropContext onDragEnd={handleDragEnd}>
-                      <Droppable droppableId="docs-list" direction="horizontal">
-                        {(provided) => (
-                          <div ref={provided.innerRef} {...provided.droppableProps} style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", gap: 7, overflowX: "auto", paddingBottom: 4 }}>
-                            {orderedDocs.map((doc, index) => {
-                              const ext = (doc.filename || "").split(".").pop().toLowerCase();
-                              const color = ext === "pdf" ? "#00B894" : ext === "html" ? "#0984E3" : "#6C5CE7";
-                              const isSelected = fileToSend && fileToSend.name === doc.filename;
-                              const isRIS = risFileName === doc.filename;
-                              return (
-                                <Draggable key={String(doc.id)} draggableId={String(doc.id)} index={index}>
-                                  {(drag, snapshot) => (
-                                    <div
-                                      ref={drag.innerRef}
-                                      {...drag.draggableProps}
-                                      {...drag.dragHandleProps}
-                                      style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: isSelected ? `${color}18` : snapshot.isDragging ? "#f3f0ff" : `${color}08`, border: `1px solid ${isSelected ? color : snapshot.isDragging ? "#7367f0" : `${color}18`}`, fontSize: 13, cursor: snapshot.isDragging ? "grabbing" : "grab", transition: snapshot.isDragging ? "none" : "all 0.15s", ...drag.draggableProps.style }}
-                                      onClick={() => { if (isSelected) return; handleSelectDocument(doc); }}
-                                      title={isSelected ? "Document sélectionné pour l'analyse" : `Cliquer pour sélectionner "${doc.filename}"`}
-                                    >
-                                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                        <span style={{ fontSize: 15 }}>📄</span>
-                                        <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{doc.filename}</span>
-                                        <span style={{ fontSize: 11, color, fontWeight: 700 }}>{ext.toUpperCase()}</span>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                                          {isSelected && (
-                                            <button onClick={(e) => { e.stopPropagation(); const url = URL.createObjectURL(fileToSend); window.open(url, '_blank'); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }} title="Visualiser le document">
-                                              <Eye size={14} />
-                                            </button>
-                                          )}
-                                          <button onClick={(e) => { e.stopPropagation(); handleDeleteDocument(doc.id, doc.filename); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }} title="Supprimer le document">✕</button>
-                                        </div>
-                                      </div>
-                                      {["pdf", "png", "jpg", "jpeg", "webp"].includes(ext) && (() => {
-                                        const detection = docTypeDetection[doc.filename];
-                                        if (detection?.loading) {
-                                          return (
-                                            <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: "#7367f0" }}>
-                                              <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
-                                              Détection…
-                                            </div>
-                                          );
-                                        }
-                                        if (detection?.doc_type === "bulletin_salaire") {
-                                          return renderBulletinSection(doc.filename, doc);
-                                        }
-                                        if (detection?.is_ris === false) {
-                                          return (
-                                            <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
-                                              📄 {detection.doc_type ? detection.doc_type.charAt(0).toUpperCase() + detection.doc_type.slice(1).replace(/_/g, " ") : "Document"}
-                                            </div>
-                                          );
-                                        }
-                                        return (
-                                          <button onClick={(e) => { e.stopPropagation(); handleAnalyzeDoc(doc); }} disabled={isParsingRIS} style={{ marginTop: 6, background: isParsingRIS && isRIS ? "#a29bfe" : "#7367f0", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 13, fontWeight: 700, cursor: isParsingRIS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", opacity: isParsingRIS && !isRIS ? 0.5 : 1, transition: "all 0.2s ease" }}>
-                                            {isParsingRIS && isRIS ? (<><span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />Extraction en cours…</>) : "🚀 Analyser ce RIS"}
-                                          </button>
-                                        );
-                                      })()}
-                                    </div>
-                                  )}
-                                </Draggable>
-                              );
-                            })}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </DragDropContext>
-                    
-                    {/* Fichier uploadé manuellement (pas encore dans la liste serveur) */}
-                    {fileToSend && !userDocuments.filter((d) => Number(d.dossier) === 10).some((d) => d.filename === fileToSend.name) && (
-                      <div style={{ display: "flex", flexDirection: "column", padding: "6px 12px", borderRadius: 7, background: "#00B89418", border: "1px solid #00B894", fontSize: 13, minWidth: 180, maxWidth: 320, alignSelf: "flex-start" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 15 }}>📄</span>
-                          <span style={{ fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14 }}>{fileToSend.name}</span>
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto", paddingLeft: 4 }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const url = URL.createObjectURL(fileToSend);
-                                window.open(url, '_blank');
-                              }}
-                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                              title="Visualiser"
-                            >
-                              <Eye size={14} />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); clearFileToSend(); }}
-                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "2px", fontSize: 14, lineHeight: 1, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
-                              title="Retirer"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                        {(() => { const n = fileToSend.name.toLowerCase(); return n.endsWith(".pdf") || n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".webp"); })() && (() => {
-                          const detection = docTypeDetection[fileToSend.name];
-                          const isActiveRIS = risFileName === fileToSend.name;
-                          if (detection?.loading) {
-                            return (
-                              <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: "#7367f0" }}>
-                                <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
-                                Détection…
-                              </div>
-                            );
-                          }
-                          if (detection?.doc_type === "bulletin_salaire") {
-                            return renderBulletinSection(fileToSend.name, fileToSend);
-                          }
-                          if (detection?.is_ris === false) {
-                            return (
-                              <div style={{ marginTop: 6, textAlign: "center", fontSize: 11, color: "#636e72", padding: "3px 8px", background: "#f5f5f5", borderRadius: 6, fontWeight: 600 }}>
-                                📄 {detection.doc_type ? detection.doc_type.charAt(0).toUpperCase() + detection.doc_type.slice(1).replace(/_/g, " ") : "Document"}
-                              </div>
-                            );
-                          }
-                          return (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRisFileName(fileToSend.name);
-                                parsePdfAndFillCarriere(fileToSend);
-                              }}
-                              disabled={isParsingRIS}
-                              style={{
-                                marginTop: 6,
-                                background: isParsingRIS && isActiveRIS ? "#a29bfe" : "#7367f0",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "5px 10px",
-                                fontSize: 13,
-                                fontWeight: 700,
-                                cursor: isParsingRIS ? "not-allowed" : "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 5,
-                                width: "100%",
-                                opacity: isParsingRIS && !isActiveRIS ? 0.5 : 1,
-                                transition: "all 0.2s ease",
-                              }}
-                            >
-                              {isParsingRIS && isActiveRIS ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm" style={{ width: "0.6rem", height: "0.6rem", borderWidth: "0.15em" }} role="status" />
-                                  Extraction en cours…
-                                </>
-                              ) : (
-                                "🚀 Analyser ce RIS"
-                              )}
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "4px 0" }}>Aucun document importé</div>
-                )}
-              </div>
-              {/* fin zone documents masquée */}
+          {/* Documents générés / RIS upload hero removed from Infos (JF lock 2026-09-10).
+              Attach via Assistant + ; Documents tab + Livrables keep dossier/generated docs. */}
 
               {/* ── Rapprochement RIS / bulletin (affichée seulement si RIS analysé + ≥1 bulletin) ── */}
               {canRapprocher && (
@@ -4768,27 +4707,6 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                 )}
               </div>
               )}
-
-          {/* ── CHATBOT ASSISTANT CONTEXTUEL — visible uniquement pour admin/consultant ── */}
-          {user?.id &&
-            ["admin", "consultant"].includes(
-              ((window.localStorage && window.localStorage.getItem("role")) || "").toLowerCase()
-            ) && (
-            <SimulatorChatPanel
-              clientId={user.id}
-              pinnedNote={pinnedNote}
-              onPin={(content) => { setPinnedNote(content); toast.success("📌 Note épinglée — sera transmise au rapport."); }}
-              onUnpin={() => { setPinnedNote(""); toast.info("Note retirée du rapport."); }}
-              getContext={() => buildSimulatorContext({
-                user,
-                carriereRows,
-                carriereValidee,
-                chosenScenarios,
-                chosenDates,
-                scenarioSkillResults,
-              })}
-            />
-          )}
 
           {/* ── MAIN PANELS ── */}
           {hasDocuments && (
@@ -5736,6 +5654,38 @@ export default function SimulatorV6({ mode = "production", id, user, onUserUpdat
                               )}
                             </div>
                           )}
+
+                          {/* Tranche C AGIRC-ARRCO (saisie manuelle depuis le relevé de points) */}
+                          <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, border: "1px solid #e6e8ef", background: "#fbfbff" }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e", marginBottom: 6 }}>
+                              📉 Tranche C AGIRC-ARRCO <span style={{ fontWeight: 400, color: "#9a9aa5" }}>(optionnel)</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8, lineHeight: 1.4 }}>
+                              Points TC <b>avant 2016</b> (relevé de points AGIRC-ARRCO, ligne « Dont TC avant 2016 »).
+                              Minorés selon l'âge si liquidation avant 67 ans, même au taux plein.
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={agircPointsTc}
+                                onChange={(e) => setAgircPointsTc(e.target.value)}
+                                disabled={carriereValidee}
+                                placeholder="ex. 15036,77"
+                                style={{ width: 130, padding: "6px 8px", borderRadius: 6, border: "1px solid #d7dbe8", fontSize: 13 }}
+                              />
+                              <span style={{ fontSize: 11, color: "#9a9aa5" }}>points TC</span>
+                              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", cursor: carriereValidee ? "default" : "pointer" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={agircTcReport67}
+                                  onChange={(e) => setAgircTcReport67(e.target.checked)}
+                                  disabled={carriereValidee}
+                                />
+                                Reporter la liquidation TC à 67 ans (pas de minoration)
+                              </label>
+                            </div>
+                          </div>
 
                           {/* Boutons bas */}
                           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>

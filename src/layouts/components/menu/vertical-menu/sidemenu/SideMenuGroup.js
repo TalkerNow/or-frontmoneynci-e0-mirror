@@ -4,6 +4,7 @@ import { Badge } from "reactstrap";
 import classnames from "classnames";
 import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
+import { isLeafRouteActive } from "../../../../utils/menuActiveMatch";
 
 class SideMenuGroup extends React.Component {
   constructor(props) {
@@ -55,10 +56,15 @@ class SideMenuGroup extends React.Component {
               this.props.collapsedMenuPaths(child.navLink);
             }
 
+            // Exact route leaf only — no startsWith sticky matches (JF)
             if (
-              this.props.activeItemState === child.navLink ||
-              (child.navLink &&
-                this.props.activeItemState.startsWith(child.navLink))
+              child.type === "item" &&
+              child.navLink &&
+              isLeafRouteActive(
+                child,
+                this.props.activePath || this.props.activeItemState || "",
+                this.props.activeLeafId
+              )
             ) {
               this.childObj = child;
               this.props.parentArr.push(this.parentArray);
@@ -85,31 +91,21 @@ class SideMenuGroup extends React.Component {
                     open:
                       child.type === "collapse" &&
                       activeGroup.includes(child.id),
+                    // Route-derived only — leave section clears highlight (JF)
                     "sidebar-group-active":
-                      this.props.currentActiveGroup.includes(child.id),
-                    active:
-                      // ✅ Items normaux
-                      ((this.props.activeItemState === child.navLink ||
-                        (child.navLink &&
-                          this.props.activeItemState.startsWith(
-                            child.navLink
-                          ))) &&
-                        child.type === "item") ||
-                      // ✅ Collapse items avec navLink (ex: Boîte de réception) - exact match seulement
-                      // ✅ Collapse items avec navLink (ex: Boîte de réception) - exact match ONLY
-                      (child.type === "collapse" &&
-                        child.navLink &&
-                        this.props.activeItemState === child.navLink) ||
-                      // ✅ Standard Groups - Active if children are active, BUT EXCLUDE collapse items with navLink (like Inbox)
-                      // This prevents Inbox from turning violet when Chatbot is active.
-                      (!child.navLink &&
-                        item.parentOf &&
-                        item.parentOf.includes(this.props.activeItemState)),
+                      Array.isArray(this.props.routeGroupIds) &&
+                      this.props.routeGroupIds.includes(child.id),
+                    active: isLeafRouteActive(
+                      child,
+                      this.props.activePath || this.props.activeItemState || "",
+                      this.props.activeLeafId
+                    ),
                   })}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleGroupClick(child.id, item.id, child.type);
-                    if (child.navLink && child.navLink !== undefined) {
+                    // Only leaf items with a real navLink update selection
+                    if (child.type === "item" && child.navLink) {
                       handleActiveItem(child.navLink);
                     }
                     if (
@@ -162,33 +158,28 @@ class SideMenuGroup extends React.Component {
                       ""
                     )}
 
-                    {/* Chatbot Badge */}
-                    {child.id === "crm-inbox-chatbot" &&
-                      this.props.chatbotBadge > 0 ? (
+                    {/* Chatbot Badge — never at 0 */}
+                    {(child.id === "leads-chatbot" ||
+                      child.id === "crm-inbox-chatbot") &&
+                    this.props.chatbotBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.chatbotBadge}
                       </Badge>
                     ) : null}
 
-                    {/* Diagnostic Badge */}
-                    {child.id === "crm-inbox-diagnostic" &&
-                      this.props.diagnosticBadge > 0 ? (
+                    {/* Diagnostic Badge — never at 0 */}
+                    {(child.id === "leads-diagnostic" ||
+                      child.id === "crm-inbox-diagnostic") &&
+                    this.props.diagnosticBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.diagnosticBadge}
                       </Badge>
                     ) : null}
-
-                    {/* Call Badge */}
-                    {child.id === "crm-inbox-call" &&
-                      this.props.callBadge > 0 ? (
-                      <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
-                        {this.props.callBadge}
-                      </Badge>
-                    ) : null}
-
-                    {/* Email Badge */}
-                    {child.id === "crm-inbox-email" &&
-                      this.props.emailBadge > 0 ? (
+                    {/* Appels badge removed — Martin fiches only (tip 2026-09-12) */}
+{/* Email Badge */}
+                    {(child.id === "leads-mails" ||
+                      child.id === "crm-inbox-email") &&
+                    this.props.emailBadge > 0 ? (
                       <Badge color="danger" className="" style={{ position: "absolute", right: "5px", top: "50%", transform: "translateY(-50%)", margin: 0 }} pill>
                         {this.props.emailBadge}
                       </Badge>
