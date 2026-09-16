@@ -492,13 +492,13 @@ class UserEdit extends React.Component {
             >
               <style>{`
 .nav-tabs .nav-link { white-space: nowrap; }
-.nav-tabs .nav-link.active {
-  font-weight: 700;
-  background-color: #f8f9fa;
+[dir] .nav.nav-tabs .nav-item .nav-link.active {
+  font-weight: 700 !important;
+  background-color: #f8f9fa !important;
   border-radius: 0.357rem;
 }
-.nav-tabs .nav-link.active:after,
-.nav-tabs .nav-link.active::after {
+[dir] .nav.nav-tabs .nav-item .nav-link.active:after,
+[dir] .nav.nav-tabs .nav-item .nav-link.active::after {
   height: 3px !important;
 }
 `}</style>
