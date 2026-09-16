@@ -10,7 +10,7 @@ import {
   DropdownToggle,
 } from "reactstrap";
 
-import { useHistory, useLocation } from "react-router-dom";
+import { useHistory, useLocation, Link } from "react-router-dom";
 
 import {
   Mail as MailIcon,
@@ -27,6 +27,7 @@ import { Plus } from "lucide-react";
 import InboxView from "./components/InboxView";
 import AdminView from "./components/AdminView";
 import KanbanBoard from "./components/kanban/KanbanBoard.jsx";
+import SuiviAvancementBox from "../user/edit/SuiviAvancementBox";
 
 /** =============================
  *  Helpers (token, admin id, date)
@@ -1830,17 +1831,24 @@ export default function KpiPage() {
                                             s.document_id || s.facture_id || ""
                                           }`}
                                           onClick={() => {
-                                            if (clientId) {
-                                              history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                            }
+                                            setSelectedSuivi(s);
                                           }}
                                           style={{ cursor: "pointer" }}
                                         >
                                           {/* Client */}
-                                          <td>{clientLabel}</td>
+                                          <td>
+                                            {clientId ? (
+                                              <Link
+                                                to={`/app/user/edit/${clientId}/2`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ color: "inherit", textDecoration: "underline" }}
+                                              >
+                                                {clientLabel}
+                                              </Link>
+                                            ) : (
+                                              clientLabel
+                                            )}
+                                          </td>
 
                                           {/* À faire */}
                                           <td>{renderTodoCell(next, null, isDatePastOrToday(last && last.date))}</td>
@@ -1952,17 +1960,24 @@ export default function KpiPage() {
                                             s.document_id || s.facture_id || ""
                                           }`}
                                           onClick={() => {
-                                            if (clientId) {
-                                              history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                            }
+                                            setSelectedSuivi(s);
                                           }}
                                           style={{ cursor: "pointer" }}
                                         >
                                           {/* Client */}
-                                          <td>{clientLabel}</td>
+                                          <td>
+                                            {clientId ? (
+                                              <Link
+                                                to={`/app/user/edit/${clientId}/2`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ color: "inherit", textDecoration: "underline" }}
+                                              >
+                                                {clientLabel}
+                                              </Link>
+                                            ) : (
+                                              clientLabel
+                                            )}
+                                          </td>
 
                                           {/* À faire - Label dynamique du paiement */}
                                           <td>
@@ -2082,17 +2097,24 @@ export default function KpiPage() {
                                             s.document_id || s.facture_id || ""
                                           }`}
                                           onClick={() => {
-                                            if (clientId) {
-                                              history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                            }
+                                            setSelectedSuivi(s);
                                           }}
                                           style={{ cursor: "pointer" }}
                                         >
                                           {/* Client */}
-                                          <td>{clientLabel}</td>
+                                          <td>
+                                            {clientId ? (
+                                              <Link
+                                                to={`/app/user/edit/${clientId}/2`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ color: "inherit", textDecoration: "underline" }}
+                                              >
+                                                {clientLabel}
+                                              </Link>
+                                            ) : (
+                                              clientLabel
+                                            )}
+                                          </td>
 
                                           {/* À faire */}
                                           <td>
@@ -2212,17 +2234,24 @@ export default function KpiPage() {
                                             s.document_id || s.facture_id || ""
                                           }`}
                                           onClick={() => {
-                                            if (clientId) {
-                                              history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                            }
+                                            setSelectedSuivi(s);
                                           }}
                                           style={{ cursor: "pointer" }}
                                         >
                                           {/* Client */}
-                                          <td>{clientLabel}</td>
+                                          <td>
+                                            {clientId ? (
+                                              <Link
+                                                to={`/app/user/edit/${clientId}/2`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ color: "inherit", textDecoration: "underline" }}
+                                              >
+                                                {clientLabel}
+                                              </Link>
+                                            ) : (
+                                              clientLabel
+                                            )}
+                                          </td>
 
                                           {/* À faire */}
                                           <td>
@@ -2341,17 +2370,24 @@ export default function KpiPage() {
                                         s.document_id || s.facture_id || ""
                                       }`}
                                       onClick={() => {
-                                        if (clientId) {
-                                          history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                        }
+                                        setSelectedSuivi(s);
                                       }}
                                       style={{ cursor: "pointer" }}
                                     >
                                       {/* Client */}
-                                      <td>{clientLabel}</td>
+                                      <td>
+                                        {clientId ? (
+                                          <Link
+                                            to={`/app/user/edit/${clientId}/2`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{ color: "inherit", textDecoration: "underline" }}
+                                          >
+                                            {clientLabel}
+                                          </Link>
+                                        ) : (
+                                          clientLabel
+                                        )}
+                                      </td>
 
                                       {/* À faire */}
                                       <td>{renderTodoCell(next, null, isDatePastOrToday(last && last.date))}</td>
@@ -2460,16 +2496,23 @@ export default function KpiPage() {
                                             s.document_id || s.facture_id || ""
                                           }`}
                                           onClick={() => {
-                                            if (clientId) {
-                                              history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                            }
+                                            setSelectedSuivi(s);
                                           }}
                                           style={{ cursor: "pointer" }}
                                         >
-                                          <td>{clientLabel}</td>
+                                          <td>
+                                            {clientId ? (
+                                              <Link
+                                                to={`/app/user/edit/${clientId}/2`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ color: "inherit", textDecoration: "underline" }}
+                                              >
+                                                {clientLabel}
+                                              </Link>
+                                            ) : (
+                                              clientLabel
+                                            )}
+                                          </td>
                                           <td>{renderTodoCell(next, null, isDatePastOrToday(last && last.date))}</td>
                                           <td>
                                             {last ? (
@@ -2575,16 +2618,23 @@ export default function KpiPage() {
                                             s.document_id || s.facture_id || ""
                                           }`}
                                           onClick={() => {
-                                            if (clientId) {
-                                              history.push({
-                                                pathname: `/app/user/edit/${clientId}/2`,
-                                                state: { backUrl: location.pathname }
-                                              });
-                                            }
+                                            setSelectedSuivi(s);
                                           }}
                                           style={{ cursor: "pointer" }}
                                         >
-                                          <td>{clientLabel}</td>
+                                          <td>
+                                            {clientId ? (
+                                              <Link
+                                                to={`/app/user/edit/${clientId}/2`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ color: "inherit", textDecoration: "underline" }}
+                                              >
+                                                {clientLabel}
+                                              </Link>
+                                            ) : (
+                                              clientLabel
+                                            )}
+                                          </td>
 
                                           <td>
                                             <span
@@ -2684,6 +2734,14 @@ export default function KpiPage() {
                 </tbody>
               </Table>
               </div>
+              {selectedSuivi?.client_id && (
+                <div style={{ marginTop: 16 }}>
+                  <SuiviAvancementBox
+                    clientId={selectedSuivi.client_id}
+                    onContractUpdate={fetchSuivis}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </AdminView>
