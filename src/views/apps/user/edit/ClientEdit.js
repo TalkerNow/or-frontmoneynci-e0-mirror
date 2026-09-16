@@ -258,6 +258,20 @@ class UserEdit extends React.Component {
       this.fetchUser();
       this.fetchMembers();
     }
+
+    // Tip 2026-09-16: horizontal Contrat is prospect-only — orphan deep-link
+    // (tab=8 / activeTab contrats) for clients -> Documents -> Contrats
+    const role = String(this.state.rowData?.role || "").toLowerCase();
+    if (
+      this.state.activeTab === "contrats" &&
+      role &&
+      role !== "prospect"
+    ) {
+      this.setState({
+        activeTab: "documents",
+        documentsInitialSubTab: "contrats",
+      });
+    }
   }
 
   // "Analyse carrière" from the Documents tab dispatches careerAnalysisFileReady.
@@ -483,18 +497,20 @@ class UserEdit extends React.Component {
                 </NavLink>
               </NavItem>
 
-              <NavItem>
-                <NavLink
-                  id={`contrat-link-client-${id}`}
-                  className={classnames({
-                    active: this.state.activeTab === "contrats" && !this.state.ficheActionsView,
-                  })}
-                  onClick={() => this.toggle("contrats")}
-                >
-                  <FileText className="text-primary mr-50" size={16} />
-                  <span id={`contrat-label-client-${id}`}> Contrat</span>
-                </NavLink>
-              </NavItem>
+              {String(this.state.rowData?.role).toLowerCase() === "prospect" && (
+                <NavItem>
+                  <NavLink
+                    id={`contrat-link-client-${id}`}
+                    className={classnames({
+                      active: this.state.activeTab === "contrats" && !this.state.ficheActionsView,
+                    })}
+                    onClick={() => this.toggle("contrats")}
+                  >
+                    <FileText className="text-primary mr-50" size={16} />
+                    <span id={`contrat-label-client-${id}`}> Contrat</span>
+                  </NavLink>
+                </NavItem>
+              )}
 
               <NavItem>
                 <NavLink
