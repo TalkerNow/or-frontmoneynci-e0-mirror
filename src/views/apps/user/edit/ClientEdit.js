@@ -65,6 +65,7 @@ class UserEdit extends React.Component {
     showUnsavedModal: false,
     taskCount: 0,
     hasUrgentTask: false,
+    docCount: 0,
     ficheActionsView: null, // Lot1: CALLREPORT | TASK | null
   };
 
@@ -189,6 +190,23 @@ class UserEdit extends React.Component {
     }
   };
 
+  fetchDocCount = async () => {
+    const Config = {
+      headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+    };
+    const { id } = this.props.match.params;
+    try {
+      const response = await axios.get(
+        global.config.server_url + "/files?user_id=" + id,
+        Config,
+      );
+      const files = Array.isArray(response.data) ? response.data : [];
+      this.setState({ docCount: files.length });
+    } catch (e) {
+      console.error("Error fetching doc count", e);
+    }
+  };
+
   fetchMembers = async () => {
     const Config = {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") },
@@ -217,6 +235,7 @@ class UserEdit extends React.Component {
     await this.fetchUser();
     await this.fetchMembers();
     await this.fetchTaskCount();
+    await this.fetchDocCount();
     // Calculate offsets immediately after mount for alignment
     setTimeout(() => {
       if (this.state.activeTab === "simulateur") this.computeSimuOffset();
@@ -536,6 +555,22 @@ class UserEdit extends React.Component {
                     {" "}
                     Documents
                   </span>
+                  {this.state.docCount > 0 && (
+                    <span
+                      className="badge badge-primary ml-50"
+                      style={{
+                        fontSize: "0.65rem",
+                        minWidth: "18px",
+                        height: "18px",
+                        padding: "0",
+                        lineHeight: "18px",
+                        textAlign: "center",
+                        borderRadius: "50%",
+                      }}
+                    >
+                      {this.state.docCount}
+                    </span>
+                  )}
                 </NavLink>
               </NavItem>
 
