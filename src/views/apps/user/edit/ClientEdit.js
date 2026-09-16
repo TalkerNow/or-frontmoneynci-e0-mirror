@@ -19,7 +19,6 @@ import classnames from "classnames";
 import {
   Info,
   Folder,
-  CheckSquare,
   ArrowLeft,
   Disc,
   Mail,
@@ -592,33 +591,6 @@ class UserEdit extends React.Component {
               {String(this.state.rowData?.role).toLowerCase() !==
                 "prospect" && (
                 <>
-                  <NavItem>
-                    <NavLink
-                      className={classnames("d-flex align-items-center", {
-                        active: this.state.activeTab === "tasks" && !this.state.ficheActionsView,
-                      })}
-                      onClick={() => this.toggle("tasks")}
-                    >
-                      <CheckSquare className="text-primary mr-50" size={16} />
-                      Tâches
-                      {this.state.taskCount > 0 && (
-                        <span
-                          className={`badge badge-${this.state.hasUrgentTask ? "danger" : "primary"} ml-50`}
-                          style={{
-                            fontSize: "0.65rem",
-                            minWidth: "18px",
-                            height: "18px",
-                            padding: "0",
-                            lineHeight: "18px",
-                            textAlign: "center",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          {this.state.taskCount}
-                        </span>
-                      )}
-                    </NavLink>
-                  </NavItem>
                   <NavItem>
                     <NavLink
                       className={classnames({
