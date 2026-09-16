@@ -922,7 +922,7 @@ export default function UserDetails({
           </div>
         </div>
 
-        <div className="d-flex justify-content-center justify-content-sm-end flex-wrap mt-auto mb-0 pb-0">
+        <div className="d-flex align-items-center justify-content-center justify-content-sm-end flex-wrap mt-auto mb-0 pb-0">
           {/* Unlocked: Valider+coche + trash. Locked: Détails (escape) + trash. No Valider after lock. */}
           {identityLocked ? (
             <Button.Ripple
@@ -933,6 +933,7 @@ export default function UserDetails({
               style={{
                 padding: "0.55rem 1.2rem",
                 fontSize: "0.95rem",
+                lineHeight: 1,
                 marginBottom: "10px",
               }}
               onClick={onEdit}
@@ -957,6 +958,7 @@ export default function UserDetails({
                 minWidth: 44,
                 padding: "0.55rem 1.2rem",
                 fontSize: "0.95rem",
+                lineHeight: 1,
                 marginBottom: "10px",
                 borderRadius: 20,
                 cursor: isSavingIdentity ? "wait" : "pointer",
@@ -987,8 +989,8 @@ export default function UserDetails({
               ) : (
                 <>
                   <svg
-                    width="16"
-                    height="16"
+                    width="13"
+                    height="13"
                     viewBox="0 0 16 16"
                     fill="none"
                     aria-hidden="true"
@@ -1027,6 +1029,7 @@ export default function UserDetails({
             style={{
               padding: "0.55rem 1.2rem",
               fontSize: "0.95rem",
+              lineHeight: 1,
               marginBottom: "10px",
             }}
             onClick={() => setShowDelete(true)}
