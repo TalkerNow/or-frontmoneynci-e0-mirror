@@ -28,11 +28,13 @@ import {
   CheckCircle,
   X,
   FileText,
+  Share2,
 } from "react-feather";
 import ActionsSection from "../../kpi/components/inbox/ActionsSection";
 import UserDetails from "../../profile/UserDetails";
 import AccountTab from "./Informations";
 import NotesTab from "./Notes";
+import SourceTab from "./SourceTab";
 import CommentsTab from "./Comments";
 import "../../../../assets/scss/pages/users.scss";
 import "../../profile/Profile.css";
@@ -527,6 +529,19 @@ class UserEdit extends React.Component {
                 </NavLink>
               </NavItem>
 
+              <NavItem>
+                <NavLink
+                  id={`source-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "source" && !this.state.ficheActionsView,
+                  })}
+                  onClick={() => this.toggle("source")}
+                >
+                  <Share2 className="text-primary mr-50" size={16} />
+                  <span id={`source-label-client-${id}`}> Source</span>
+                </NavLink>
+              </NavItem>
+
               {String(this.state.rowData?.role).toLowerCase() === "prospect" && (
                 <NavItem>
                   <NavLink
@@ -767,6 +782,10 @@ class UserEdit extends React.Component {
                   ) : null
                 }
               />
+            </TabPane>
+
+            <TabPane tabId="source">
+              <SourceTab id={id} data={this.state.rowData} />
             </TabPane>
 
             <TabPane tabId="contrats">
