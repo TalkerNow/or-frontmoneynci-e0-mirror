@@ -930,7 +930,11 @@ export default function UserDetails({
               aria-label="Détails"
               title="Détails"
               className="mr-1"
-              style={{ height: 40, padding: "0 12px", marginBottom: "10px" }}
+              style={{
+                padding: "0.55rem 1.2rem",
+                fontSize: "0.95rem",
+                marginBottom: "10px",
+              }}
               onClick={onEdit}
             >
               Détails
@@ -950,9 +954,9 @@ export default function UserDetails({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                height: 40,
                 minWidth: 44,
-                padding: "0 14px",
+                padding: "0.55rem 1.2rem",
+                fontSize: "0.95rem",
                 marginBottom: "10px",
                 borderRadius: 20,
                 cursor: isSavingIdentity ? "wait" : "pointer",
@@ -1020,7 +1024,11 @@ export default function UserDetails({
             aria-label="Supprimer"
             title="Supprimer"
             className="mr-1"
-            style={{ height: 40, padding: "0 12px", marginBottom: "10px" }}
+            style={{
+              padding: "0.55rem 1.2rem",
+              fontSize: "0.95rem",
+              marginBottom: "10px",
+            }}
             onClick={() => setShowDelete(true)}
           >
             <Trash2 size={15} />
