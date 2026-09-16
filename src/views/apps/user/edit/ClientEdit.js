@@ -27,6 +27,7 @@ import {
   Phone,
   CheckCircle,
   X,
+  FileText,
 } from "react-feather";
 import ActionsSection from "../../kpi/components/inbox/ActionsSection";
 import UserDetails from "../../profile/UserDetails";
@@ -37,6 +38,7 @@ import "../../../../assets/scss/pages/users.scss";
 import "../../profile/Profile.css";
 import axios from "axios";
 import DocumentsHub from "./DocumentsHub";
+import Contracts from "./Contracts";
 import CourriersHub from "./CourriersHub";
 import SimulatorHub from "./SimulatorHub";
 import SimulatorIntegration from "./notes/SimulatorIntegration";
@@ -68,6 +70,7 @@ class UserEdit extends React.Component {
 
   navRef = null;
   documentsHubRef = React.createRef();
+  contractsRef = React.createRef();
 
   computeSimuOffset = () => {
     try {
@@ -122,15 +125,12 @@ class UserEdit extends React.Component {
         5: "tasks",
         6: "commentaires",
         7: "simulateur",
-        8: "documents",
+        8: "contrats",
       };
       const next = {
         showFullForm: false,
         activeTab: mapNumToKey[tabParam] || "notes",
       };
-      if (tabParam === "8") {
-        next.documentsInitialSubTab = "contrats";
-      }
       this.setState(next);
     }
   }
@@ -275,18 +275,10 @@ class UserEdit extends React.Component {
   };
 
   toggle = (tab) => {
-    // Deep-link / legacy: Contrats is now a Documents sub-tab
-    if (tab === "contrats") {
-      this.setState(
-        { activeTab: "documents", documentsInitialSubTab: "contrats" },
-        () => {
-          setTimeout(this.computeDocsOffset, 0);
-        },
-      );
-      return;
-    }
-    if (this.state.activeTab !== tab) {
-      const next = { activeTab: tab };
+    // Tip 2026-09-15: Contrat is a first-class right-panel tab (reuse Contracts UI)
+    // Cap'tain 2026-09-15 Appel panel: text tabs clear Appel/Tache so only ONE active underline
+    if (this.state.activeTab !== tab || this.state.ficheActionsView) {
+      const next = { activeTab: tab, ficheActionsView: null };
       if (tab === "documents") next.documentsInitialSubTab = null;
       if (tab === "simulateur" && !this.state.isCollapsed)
         next.isCollapsed = true;
@@ -483,11 +475,40 @@ class UserEdit extends React.Component {
               <NavItem>
                 <NavLink
                   className={classnames({
-                    active: this.state.activeTab === "notes",
+                    active: this.state.activeTab === "notes" && !this.state.ficheActionsView,
                   })}
                   onClick={() => this.toggle("notes")}
                 >
                   <Info className="text-primary mr-50" size={16} /> Infos
+                </NavLink>
+              </NavItem>
+
+              <NavItem>
+                <NavLink
+                  id={`contrat-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "contrats" && !this.state.ficheActionsView,
+                  })}
+                  onClick={() => this.toggle("contrats")}
+                >
+                  <FileText className="text-primary mr-50" size={16} />
+                  <span id={`contrat-label-client-${id}`}> Contrat</span>
+                </NavLink>
+              </NavItem>
+
+              <NavItem>
+                <NavLink
+                  id={`documents-link-client-${id}`}
+                  className={classnames({
+                    active: this.state.activeTab === "documents" && !this.state.ficheActionsView,
+                  })}
+                  onClick={() => this.toggle("documents")}
+                >
+                  <Folder className="text-primary mr-50" size={16} />
+                  <span id={`documents-label-client-${id}`}>
+                    {" "}
+                    Documents
+                  </span>
                 </NavLink>
               </NavItem>
 
@@ -496,23 +517,8 @@ class UserEdit extends React.Component {
                 <>
                   <NavItem>
                     <NavLink
-                      id={`documents-link-client-${id}`}
-                      className={classnames({
-                        active: this.state.activeTab === "documents",
-                      })}
-                      onClick={() => this.toggle("documents")}
-                    >
-                      <Folder className="text-primary mr-50" size={16} />
-                      <span id={`documents-label-client-${id}`}>
-                        {" "}
-                        Documents
-                      </span>
-                    </NavLink>
-                  </NavItem>
-                  <NavItem>
-                    <NavLink
                       className={classnames("d-flex align-items-center", {
-                        active: this.state.activeTab === "tasks",
+                        active: this.state.activeTab === "tasks" && !this.state.ficheActionsView,
                       })}
                       onClick={() => this.toggle("tasks")}
                     >
@@ -539,7 +545,7 @@ class UserEdit extends React.Component {
                   <NavItem>
                     <NavLink
                       className={classnames({
-                        active: this.state.activeTab === "courriers",
+                        active: this.state.activeTab === "courriers" && !this.state.ficheActionsView,
                       })}
                       onClick={() => this.toggle("courriers")}
                     >
@@ -555,7 +561,7 @@ class UserEdit extends React.Component {
                       <NavLink
                         id={`simulateur-link-client-${id}`}
                         className={classnames({
-                          active: this.state.activeTab === "simulateur",
+                          active: this.state.activeTab === "simulateur" && !this.state.ficheActionsView,
                         })}
                         onClick={() => this.toggle("simulateur")}
                       >
@@ -677,7 +683,11 @@ class UserEdit extends React.Component {
               />
             </div>
           )}
-          <TabContent activeTab={this.state.activeTab}>
+          {/* Cap'tain: hide text-tab panes while Appel/Tache bandeau open (no dual-active look) */}
+          <TabContent
+            activeTab={this.state.activeTab}
+            style={{ display: this.state.ficheActionsView ? "none" : undefined }}
+          >
             <TabPane tabId="notes">
               <NotesTab
                 data={this.state.rowData}
@@ -697,20 +707,34 @@ class UserEdit extends React.Component {
               />
             </TabPane>
 
+            <TabPane tabId="contrats">
+              <Card className="mb-1" style={{ borderRadius: 12 }}>
+                <CardBody>
+                  <Contracts
+                    name={this.state.rowData?.name}
+                    id={id}
+                    parent_id={this.state.rowData?.parent_id}
+                    ref={this.contractsRef}
+                  />
+                </CardBody>
+              </Card>
+            </TabPane>
+
+            <TabPane tabId="documents">
+              <DocumentsHub
+                key={this.state.documentsInitialSubTab || "documents"}
+                ref={this.documentsHubRef}
+                id={id}
+                name={this.state.rowData?.name}
+                parent_id={this.state.rowData?.parent_id}
+                alignOffset={this.state.docsOffset}
+                labelId={`documents-label-client-${id}`}
+                initialSubTab={this.state.documentsInitialSubTab}
+              />
+            </TabPane>
+
             {String(this.state.rowData?.role).toLowerCase() !== "prospect" && (
               <>
-                <TabPane tabId="documents">
-                  <DocumentsHub
-                    key={this.state.documentsInitialSubTab || "documents"}
-                    ref={this.documentsHubRef}
-                    id={id}
-                    name={this.state.rowData.name}
-                    parent_id={this.state.rowData.parent_id}
-                    alignOffset={this.state.docsOffset}
-                    labelId={`documents-label-client-${id}`}
-                    initialSubTab={this.state.documentsInitialSubTab}
-                  />
-                </TabPane>
                 <TabPane tabId="tasks">
                   <ClientTasks
                     {...this.props}
