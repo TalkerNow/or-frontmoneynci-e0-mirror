@@ -1,5 +1,6 @@
 import React from "react";
 import * as Icon from "react-feather";
+import { hasPermission } from "../constants/permissions";
 
 // Define items once; reuse them in role-specific orders
 const items = {
@@ -176,14 +177,30 @@ const adminOrder = ["dashboard", "users", "kpi", "tasks", "contracts", "consulta
 // Consultant order (⚠️ sans "oldUsers")
 const consultantOrder = ["users", "tasks", "contracts"];
 
-const buildMenu = (order) => order.map((key) => items[key]);
+// Certains items sont en plus gardés par une permission en base
+// (voir user_permissions), indépendante du rôle.
+const REQUIRED_PERMISSION_BY_KEY = {
+  consultantAccess: "consultant-access",
+};
 
-const role =
-  typeof window !== "undefined" && localStorage.getItem("role")
-    ? localStorage.getItem("role").toLowerCase()
-    : "consultant";
+const buildMenu = (order) =>
+  order
+    .filter((key) => {
+      const requiredPermission = REQUIRED_PERMISSION_BY_KEY[key];
+      return !requiredPermission || hasPermission(requiredPermission);
+    })
+    .map((key) => items[key]);
 
-const navigationConfig =
-  role === "admin" ? buildMenu(adminOrder) : buildMenu(consultantOrder);
+// Recalculé à chaque appel (et non une fois pour toutes au chargement du
+// module) pour refléter le rôle/les permissions courants de localStorage,
+// qui changent sans rechargement complet de la page (login en SPA).
+const getNavigationConfig = () => {
+  const role =
+    typeof window !== "undefined" && localStorage.getItem("role")
+      ? localStorage.getItem("role").toLowerCase()
+      : "consultant";
 
-export default navigationConfig;
+  return role === "admin" ? buildMenu(adminOrder) : buildMenu(consultantOrder);
+};
+
+export default getNavigationConfig;

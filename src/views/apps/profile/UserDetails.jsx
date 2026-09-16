@@ -3,6 +3,7 @@ import axios from "axios";
 import { Card, CardBody, Button, Badge, UncontrolledTooltip } from "reactstrap";
 import { User as UserIcon, Disc, ArrowLeft, Trash2 } from "react-feather";
 import api from "../../../services/api";
+import { hasPermission } from "../../../constants/permissions";
 import { history } from "../../../history";
 import SweetAlert from "react-bootstrap-sweetalert";
 import ReactDOM from "react-dom";
@@ -25,9 +26,6 @@ export default function UserDetails({
   const [consultantHistory, setConsultantHistory] = useState([]);
   const [consultantAccess, setConsultantAccess] = useState(null);
 
-  const ADMIN_IDS = [4, 1271, 1638];
-  const currentUserId = parseInt(localStorage.getItem("userid"), 10);
-
   // --- FETCH des membres ---
   useEffect(() => {
     let isMounted = true;
@@ -49,7 +47,7 @@ export default function UserDetails({
 
   // --- FETCH accès consultant (visible admins uniquement) ---
   useEffect(() => {
-    if (!user?.id || user?.role !== "Consultant" || !ADMIN_IDS.includes(currentUserId)) return;
+    if (!user?.id || user?.role !== "Consultant" || !hasPermission("consultant-access")) return;
     let isMounted = true;
     api.get(`/v1/consultant-access/user/${user.id}`)
       .then(({ data }) => { if (isMounted) setConsultantAccess(data) })
@@ -351,7 +349,7 @@ export default function UserDetails({
                       {String(user.role).toUpperCase()}
                     </Badge>
                   )}
-                  {consultantAccess && ADMIN_IDS.includes(currentUserId) && (
+                  {consultantAccess && hasPermission("consultant-access") && (
                     !consultantAccess.access_id ? (
                       <span style={{
                         background: "#f0f0f0", color: "#6e6b7b",

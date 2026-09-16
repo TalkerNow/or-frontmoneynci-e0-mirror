@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
-import navigationConfig from "../../../../../configs/navigationConfig";
+import getNavigationConfig from "../../../../../configs/navigationConfig";
 import SideMenuGroup from "./SideMenuGroup";
 import { ChevronRight } from "react-feather";
 import { FormattedMessage } from "react-intl";
@@ -584,7 +584,7 @@ class SideMenuContent extends React.Component {
   render() {
     // Loop over sidebar items
     // eslint-disable-next-line
-    const menuItems = navigationConfig.map((item) => {
+    const menuItems = getNavigationConfig().map((item) => {
       const CustomAnchorTag = item.type === "external-link" ? `a` : Link;
       if (item.type === "groupHeader") {
         return (

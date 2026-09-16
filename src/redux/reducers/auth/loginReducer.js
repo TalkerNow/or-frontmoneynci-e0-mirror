@@ -23,6 +23,7 @@ export const login = (state = { userRole: "visitor" }, action) => {
       localStorage.setItem("username", "null")
       localStorage.setItem("role", "null")
       localStorage.setItem("userid", "visitor")
+      localStorage.setItem("permissions", "[]")
       return { ...state, values: action.payload }
     }
     case "LOGOUT_WITH_FIREBASE": {

@@ -8,9 +8,8 @@ import { Redirect } from "react-router-dom"
 import { ContextLayout } from "../../../utility/context/Layout"
 import api from "../../../services/api"
 import ConsultantAccessFormModal from "./ConsultantAccessFormModal"
+import { hasPermission } from "../../../constants/permissions"
 import "../../../assets/scss/plugins/tables/_agGridStyleOverride.scss"
-
-const AUTHORIZED_IDS = [4, 1271, 1638]
 
 const BADGE = {
   none:    { background: "#f0f0f0", color: "#6e6b7b" },
@@ -144,8 +143,6 @@ class ConsultantAccessPage extends React.Component {
     ],
   }
 
-  currentUserId = parseInt(localStorage.getItem("userid"), 10)
-
   sizeToFit = () => {
     if (this.gridApi) {
       try { this.gridApi.sizeColumnsToFit() } catch (e) {}
@@ -164,7 +161,7 @@ class ConsultantAccessPage extends React.Component {
   }
 
   componentDidMount() {
-    if (AUTHORIZED_IDS.includes(this.currentUserId)) {
+    if (hasPermission("consultant-access")) {
       this.fetchData()
     }
   }
@@ -196,7 +193,7 @@ class ConsultantAccessPage extends React.Component {
   }
 
   render() {
-    if (!AUTHORIZED_IDS.includes(this.currentUserId)) {
+    if (!hasPermission("consultant-access")) {
       return <Redirect to="/misc/not-authorized" />
     }
 

@@ -41,7 +41,7 @@ import { history } from "../../../../history";
 import Contracts from "./Contracts";
 import SuiviAvancementBox from "./SuiviAvancementBox";
 
-import { canAccessSimulator } from "../../../../constants/permissions";
+import { canAccessSimulator, hasPermission } from "../../../../constants/permissions";
 import ClientTasks from "./clientTask/Task";
 
 
@@ -659,13 +659,7 @@ class UserEdit extends React.Component {
             >
               Production Client
             </button>
-            {(() => {
-              try {
-                const token = localStorage.getItem("token") || "";
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                return [4, 1271, 1638].includes(parseInt(payload.sub));
-              } catch { return false; }
-            })() && (
+            {hasPermission("admin-moteur") && (
               <button
                 onClick={() => this.setState({ simulatorMode: "admin" })}
                 style={{

@@ -18,3 +18,20 @@ export const canAccessSimulator = () => {
     return false;
   }
 };
+
+/**
+ * Check if the current logged-in user has a given permission
+ * (permissions are granted server-side, in the user_permissions table,
+ * and returned by the API at login as `user.permissions`).
+ * @param {string} permission e.g. "consultant-access" or "admin-moteur"
+ * @returns {boolean}
+ */
+export const hasPermission = (permission) => {
+  try {
+    const permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
+    return Array.isArray(permissions) && permissions.includes(permission);
+  } catch (e) {
+    console.warn("Error checking permission:", e);
+    return false;
+  }
+};
