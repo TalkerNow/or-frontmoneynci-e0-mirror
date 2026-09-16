@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import {
   Modal, ModalHeader, ModalBody, ModalFooter, Button,
-  UncontrolledButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem,
+  UncontrolledButtonDropdown, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem,
   FormGroup, Label, Input,
 } from "reactstrap";
 import api from "../../../../../services/api";
@@ -459,15 +459,50 @@ export default function SimulatorChatPanel({
               <DropdownItem header className="simulator-chat-panel__plus-header" style={{ color: "black" }}>
                 Déplacer vers
               </DropdownItem>
-              {DOC_FOLDERS.map((folder) => (
-                <DropdownItem
-                  key={folder.id}
-                  className="simulator-chat-panel__plus-item"
-                  onClick={() => moveFile(file.id, folder.id)}
-                >
-                  {folder.name}
-                </DropdownItem>
-              ))}
+              {DOC_FOLDERS.map((folder) => {
+                const folderFiles = clientFiles.filter((f) => Number(f.dossier) === folder.id);
+                return (
+                  <UncontrolledDropdown
+                    key={folder.id}
+                    direction="right"
+                    className="simulator-chat-panel__plus-submenu"
+                  >
+                    <DropdownToggle
+                      tag="div"
+                      caret
+                      className="dropdown-item simulator-chat-panel__plus-item"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {folder.name}
+                    </DropdownToggle>
+                    <DropdownMenu className="simulator-chat-panel__plus-submenu-menu">
+                      <DropdownItem
+                        className="simulator-chat-panel__plus-item"
+                        disabled={!file}
+                        onClick={() => file && moveFile(file.id, folder.id)}
+                      >
+                        Déplacer dans ce dossier
+                      </DropdownItem>
+                      <DropdownItem divider />
+                      {folderFiles.length === 0 ? (
+                        <DropdownItem disabled className="simulator-chat-panel__plus-item">
+                          Aucun fichier
+                        </DropdownItem>
+                      ) : (
+                        folderFiles.map((f) => (
+                          <DropdownItem
+                            key={f.id}
+                            className="simulator-chat-panel__plus-item"
+                            onClick={() => setActiveDocId(f.id)}
+                          >
+                            {f.filename}
+                          </DropdownItem>
+                        ))
+                      )}
+                    </DropdownMenu>
+                  </UncontrolledDropdown>
+                );
+              })}
               <DropdownItem divider />
               <DropdownItem
                 className="simulator-chat-panel__plus-item"
