@@ -336,8 +336,16 @@ export default function UserDetails({
     maxWidth: "100%",
   };
 
+  const isEmptyIdentityValue = (key) => {
+    const raw = identityForm[key];
+    if (raw == null) return true;
+    const s = String(raw).trim();
+    return s === "" || s === "—" || s === "–" || s === "-";
+  };
+
   const renderIdentityValue = (key, displayNode, inputProps = {}) => {
-    if (identityLocked) return displayNode;
+    // Locked + filled → readonly display. Locked + empty → Input. Unlocked → Input.
+    if (identityLocked && !isEmptyIdentityValue(key)) return displayNode;
     const { type = "text", ...rest } = inputProps;
     if (type === "select") {
       return (
@@ -915,7 +923,7 @@ export default function UserDetails({
         </div>
 
         <div className="d-flex justify-content-center justify-content-sm-end flex-wrap mt-auto mb-0 pb-0">
-          {/* Unlocked: V + trash. Locked: Détails (escape) + trash. No V after lock. */}
+          {/* Unlocked: Valider+coche + trash. Locked: Détails (escape) + trash. No Valider after lock. */}
           {identityLocked ? (
             <Button.Ripple
               color="primary"
@@ -928,11 +936,11 @@ export default function UserDetails({
               Détails
             </Button.Ripple>
           ) : (
-            /* Pastille = same lightness pattern as PROSPECT (#dbeafe/#2c6ddf) but green CLIENT tokens */
+            /* Mint pastille tokens (#dcfce7 / #28c76f) — label Valider + checkmark (right stroke longer) */
             <button
               type="button"
-              aria-label="Valider et verrouiller la carte"
-              title="V — enregistrer et verrouiller la carte"
+              aria-label="Valider"
+              title="Valider"
               data-identity-validate="1"
               className="mr-1"
               disabled={isSavingIdentity}
@@ -941,6 +949,7 @@ export default function UserDetails({
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
+                gap: 6,
                 height: 40,
                 minWidth: 44,
                 padding: "0 14px",
@@ -955,21 +964,55 @@ export default function UserDetails({
                 appearance: "none",
                 WebkitAppearance: "none",
                 opacity: 1,
+                whiteSpace: "nowrap",
               }}
             >
-              <span
-                style={{
-                  color: "#28c76f",
-                  WebkitTextFillColor: "#28c76f",
-                  fontWeight: 700,
-                  fontSize: "1.15rem",
-                  lineHeight: 1,
-                  letterSpacing: "0.02em",
-                  userSelect: "none",
-                }}
-              >
-                {isSavingIdentity ? "…" : "V"}
-              </span>
+              {isSavingIdentity ? (
+                <span
+                  style={{
+                    color: "#28c76f",
+                    WebkitTextFillColor: "#28c76f",
+                    fontWeight: 700,
+                    fontSize: "0.95rem",
+                    lineHeight: 1,
+                    userSelect: "none",
+                  }}
+                >
+                  …
+                </span>
+              ) : (
+                <>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M2.5 8.2L6.2 12.1L13.5 3.6"
+                      stroke="#28c76f"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span
+                    style={{
+                      color: "#28c76f",
+                      WebkitTextFillColor: "#28c76f",
+                      fontWeight: 700,
+                      fontSize: "0.95rem",
+                      lineHeight: 1,
+                      letterSpacing: "0.01em",
+                      userSelect: "none",
+                    }}
+                  >
+                    Valider
+                  </span>
+                </>
+              )}
             </button>
           )}
           <Button.Ripple
